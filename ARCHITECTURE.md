@@ -101,7 +101,7 @@ graph LR
     subgraph "Tietovirta"
         GUI -- "1. Käynnistää taustatehtävän" --> Thread[Worker-säie]
         Thread -- "2. Kutsuu logiikkaa" --> Logic
-        Logic -- "3. Suorittaa komennon" --> CMD[Järjestelmäkomennot <br/>(PowerShell, netsh)]
+        Logic -- "3. Suorittaa komennon" --> CMD["Järjestelmäkomennot <br/>(PowerShell, netsh)"]
         CMD -- "4. Tulos" --> Logic
         Logic -- "5. Tulos" --> Thread
         Thread -- "6. Lähettää viestin" --> Queue(Task Queue)
