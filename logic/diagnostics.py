@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def _run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess:
     """Helper to run a command and capture its output."""
     try:
-        return subprocess.run(command, shell=False, check=check, capture_output=True, text=False)
+        return subprocess.run(command, shell=False, check=check, capture_output=True, text=False, creationflags=subprocess.CREATE_NO_WINDOW)
     except FileNotFoundError as e:
         raise NetworkManagerError(f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
     except subprocess.CalledProcessError as e:
@@ -26,7 +26,7 @@ def _run_ps_command(script: str) -> str:
     try:
         encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
         command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
-        result = subprocess.run(command, shell=False, check=True, capture_output=True)
+        result = subprocess.run(command, shell=False, check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
         return result.stdout.decode('utf-8', errors='ignore')
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         raise NetworkManagerError(f"PowerShell command failed: {e}") from e
@@ -113,7 +113,7 @@ def run_traceroute(target: str):
     """Runs a traceroute command and yields each line of output."""
     command = ['tracert', '-d', target]
     try:
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='oem', shell=False)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='oem', shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
         for line in iter(process.stdout.readline, ''):
             yield line.strip()
         process.stdout.close()

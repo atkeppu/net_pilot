@@ -1,8 +1,18 @@
 # NetPilot
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **NetPilot** on monipuolinen verkonhallinta- ja diagnostiikkatyökalu Windows-käyttöjärjestelmille. Se tarjoaa graafisen käyttöliittymän yleisimpiin verkon vianmääritys- ja hallintatehtäviin, jotka vaativat normaalisti komentorivin käyttöä.
 
-![NetPilot Screenshot](screenshot.png)  <!-- Sinun täytyy lisätä kuvakaappaus nimellä screenshot.png -->
+![NetPilot Screenshot](screenshot.png)
+
+## Sisällysluettelo
+
+- [Ominaisuudet](#ominaisuudet)
+- [Asennus ja käyttö](#asennus-ja-käyttö)
+- [Vaatimukset](#vaatimukset)
+- [Kehittäjille](#kehittäjille)
+- [Lisenssi](#lisenssi)
 
 ## Ominaisuudet
 
@@ -27,7 +37,7 @@
 Ohjelma ei vaadi asennusta.
 
 1.  Lataa uusin versio `dist`-kansiosta (jos olet paketoinut sen PyInstallerilla) tai suoraan lähdekoodista.
-2.  Suorita `main.py` Python-tulkilla tai käynnistä `.exe`-tiedosto.
+2.  Käynnistä `NetPilot.exe`-tiedosto.
 3.  Ohjelma vaatii **ylläpitäjän oikeudet** toimiakseen oikein.
 
 ## Vaatimukset

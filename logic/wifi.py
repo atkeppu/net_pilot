@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def _run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess:
     """Helper to run a command and capture its output."""
     try:
-        return subprocess.run(command, shell=False, check=check, capture_output=True, text=False)
+        return subprocess.run(command, shell=False, check=check, capture_output=True, text=False, creationflags=subprocess.CREATE_NO_WINDOW)
     except FileNotFoundError as e:
         raise NetworkManagerError(f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
     except subprocess.CalledProcessError as e:

@@ -5,9 +5,8 @@ import os
 from pathlib import Path
 import shutil
 
-# Import app name from a central place to ensure consistency
-from gui.constants import APP_NAME
-
+# Define app name directly in the build script to avoid import-related file locks.
+APP_NAME = "NetPilot"
 ENTRY_POINT = "main.py"
 ICON_FILE = "icon.ico"
 MANIFEST_FILE = "admin.manifest"
@@ -74,7 +73,8 @@ def main():
 
     # 3. Define and run the PyInstaller command
     pyinstaller_command = [
-        "pyinstaller",
+        sys.executable,     # Use 'python.exe'
+        "-m", "PyInstaller",# to run the PyInstaller module
         "--noconfirm",      # Ylikirjoittaa aiemmat build-kansion tiedostot ilman kysymystä
         "--onefile",        # Luo yhden suoritettavan tiedoston
         "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa

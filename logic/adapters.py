@@ -15,7 +15,7 @@ def _run_ps_command(script: str) -> str:
     try:
         encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
         command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
-        result = subprocess.run(command, shell=False, check=True, capture_output=True)
+        result = subprocess.run(command, shell=False, check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
         return result.stdout.decode('utf-8', errors='ignore')
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         raise NetworkManagerError(f"PowerShell command failed: {e}") from e

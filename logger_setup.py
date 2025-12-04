@@ -8,13 +8,10 @@ LOG_FILE_NAME = "debug.log"
 
 def get_application_path() -> str:
     """Gets the path of the executable or script."""
-    if getattr(sys, 'frozen', False):
-        # Running as a bundled exe (PyInstaller)
-        return os.path.dirname(sys.executable)
-    else:
-        # Running as a .py script
-        return os.path.dirname(os.path.abspath(__file__))
+    # Always return the directory of the source code to keep logs in one place.
+    return os.path.dirname(os.path.abspath(__file__))
 
+# The log directory will now always be the project's root directory.
 LOG_DIR = get_application_path()
 
 def get_log_file_path() -> str:

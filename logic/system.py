@@ -24,7 +24,7 @@ def _run_system_command(command: list[str], error_message_prefix: str, check: bo
     logger.debug("Executing system command: %s", " ".join(command))
     try:
         # Use text=False to capture raw bytes and decode manually for robustness
-        result = subprocess.run(command, shell=False, check=check, capture_output=True)
+        result = subprocess.run(command, shell=False, check=check, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
         if result.returncode != 0 and check:
             # Manually raise for non-zero exit codes when check=True
             raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
