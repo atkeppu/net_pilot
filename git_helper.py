@@ -126,9 +126,11 @@ työntää olemassa olevat muutokset sinne.
             print("   (Yleinen syy on, että samanniminen repositorio on jo olemassa GitHubissa.)", file=sys.stderr)
             sys.exit(1)
         
-        # gh repo create --push palauttaa URL:n stderr-virtaan onnistuessaan
-        # Etsitään URL sieltä
-        repo_url = next((line for line in result.stderr.splitlines() if line.startswith('https://github.com/')), "N/A")
+        # The URL can be in stdout or stderr depending on the gh version.
+        # We search both to be safe.
+        combined_output = result.stdout + "\n" + result.stderr
+        repo_url = next((line for line in combined_output.splitlines() if line.startswith('https://github.com/')), "N/A")
+
         print(f"✅ Repositorio luotu onnistuneesti.")
         print("\n4/4: Koodi työnnetty GitHubiin.")
 
