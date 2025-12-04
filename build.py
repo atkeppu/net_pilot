@@ -29,13 +29,25 @@ def create_version_file(version: str):
     version_info_template = """
 # UTF-8
 VSVersionInfo(
-  ffi=VS_FIXEDFILEINFO(
+  ffi=FixedFileInfo(
     filevers=({file_version}, 0),
     prodvers=({prod_version}, 0),
-    mask=0x3f, flags=0x0, os=0x40004, type=0x1, subtype=0x0, date=(0, 0)),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
   kids=[
-    StringFileInfo([StringTable(u'040904B0', [StringStruct(u'FileDescription', u'{app_name}'), StringStruct(u'FileVersion', u'{version_str}'), StringStruct(u'InternalName', u'{app_name}'), StringStruct(u'LegalCopyright', u'© Sami Turpeinen. All rights reserved.'), StringStruct(u'OriginalFilename', u'{app_name}.exe'), StringStruct(u'ProductName', u'{app_name}'), StringStruct(u'ProductVersion', u'{version_str}')])]), 
-    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])])
+    StringFileInfo([
+      StringTable(
+        u'040904B0',
+        [StringStruct(u'FileDescription', u'{app_name}'), StringStruct(u'FileVersion', u'{version_str}'), StringStruct(u'InternalName', u'{app_name}'), StringStruct(u'LegalCopyright', u'© Sami Turpeinen. All rights reserved.'), StringStruct(u'OriginalFilename', u'{app_name}.exe'), StringStruct(u'ProductName', u'{app_name}'), StringStruct(u'ProductVersion', u'{version_str}')])
+    ]),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)
 """
     version_info = version_info_template.format(file_version=version.replace('.', ','), prod_version=version.replace('.', ','), app_name=APP_NAME, version_str=version)
     with open(VERSION_FILE, "w", encoding="utf-8") as f:
@@ -80,8 +92,9 @@ def clean_previous_builds():
     
     for path_item in [project_root / 'build', project_root / 'dist']:
         if path_item.exists():
-            shutil.rmtree(path_item)
-            print(f"   ...ℹ️ Poistettu kansio: {path_item}")
+            # ignore_errors=True helps prevent crashes from locked files (e.g., by antivirus).
+            shutil.rmtree(path_item, ignore_errors=True)
+            print(f"   ...ℹ️ Yritetty poistaa kansio: {path_item}")
     
     for spec_file in project_root.glob('*.spec'):
         spec_file.unlink()
@@ -120,6 +133,10 @@ def main():
             "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa
             f"--icon={ICON_FILE}",
             f"--manifest={MANIFEST_FILE}",
+            # Lisätään PowerShell-skriptit ja ikoni mukaan pakettiin.
+            # Muoto on "lähde;kohde", jossa '.' on juurihakemisto paketissa.
+            "--add-data", f"logic{os.pathsep}logic",
+            "--add-data", f"{ICON_FILE}{os.pathsep}.",
             f"--version-file={VERSION_FILE}",
             f"--name={APP_NAME}",
             ENTRY_POINT

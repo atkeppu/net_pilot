@@ -1,11 +1,24 @@
 import sys
+import os
 import tkinter as tk
 from tkinter import messagebox
 import logging
+from pathlib import Path
 
 from logic.system import is_admin
 from gui.main_window import NetworkManagerApp, AppContext
 from logger_setup import setup_logging
+
+def resource_path(relative_path: str) -> Path:
+    """Hakee absoluuttisen polun resurssiin, toimii sekä kehityksessä että PyInstaller-paketissa."""
+    try:
+        # PyInstaller luo väliaikaisen kansion ja tallentaa polun _MEIPASS-muuttujaan.
+        base_path = Path(sys._MEIPASS)
+    except AttributeError:
+        # Jos ei ajeta paketista, peruspolku on tämän tiedoston hakemisto.
+        base_path = Path(__file__).parent.absolute()
+
+    return base_path / relative_path
 
 def _show_startup_error_and_exit(title: str, message: str):
     """Displays a critical error message during startup and exits the application."""
