@@ -1,14 +1,19 @@
 # NetPilot - Sovelluksen Arkkitehtuuri
 
-Tämä dokumentti kuvaa NetPilot-sovelluksen arkkitehtuurin, tärkeimmät komponentit ja niiden väliset suhteet.
+Tämä dokumentti kuvaa NetPilot-sovelluksen arkkitehtuurin, sen pääkomponentit ja niiden väliset tietovirrat. Arkkitehtuuri on suunniteltu modulaariseksi ja vankaksi, erottaen selkeästi käyttöliittymän, tilanhallinnan ja järjestelmätason toiminnot.
 
 ## Yleiskatsaus
 
-NetPilot on Windows-työpöytäsovellus, joka on rakennettu Pythonilla ja Tkinter-kirjastolla. Sen tavoitteena on tarjota graafinen käyttöliittymä yleisiin verkonhallinta- ja diagnostiikkatehtäviin. Arkkitehtuuri on suunniteltu modulaariseksi, jotta käyttöliittymä (GUI), sovelluslogiikka ja järjestelmätason komennot pysyvät erillään toisistaan.
+NetPilot noudattaa modernia työpöytäsovelluksen arkkitehtuuria, jossa on seuraavat pääperiaatteet:
 
-## Moduulirakenne
+1.  **Yksisuuntainen tietovirta:** Taustalla suoritettavat toiminnot eivät koskaan muokkaa käyttöliittymää suoraan. Sen sijaan ne lähettävät viestejä keskitettyyn jonoon, josta käyttöliittymä ne käsittelee turvallisesti.
+2.  **Vastuun eriyttäminen (Separation of Concerns):**
+    *   **GUI-kerros (`gui/`)**: Vastaa vain siitä, miltä sovellus näyttää ja käyttäjän syötteiden vastaanottamisesta.
+    *   **Ohjain- ja hallintakerros (`gui/`):** Sisältää luokkia, jotka orkestroivat toimintoja ja hallinnoivat sovelluksen tilaa (`AppContext`, `MainController`, `ActionHandler`, `PollingManager`).
+    *   **Logiikkakerros (`logic/`)**: Sisältää kaiken "likaisen työn", kuten järjestelmäkomentojen ja PowerShell-skriptien ajamisen.
+3.  **Asynkroninen suoritus:** Hitaat verkkotoiminnot suoritetaan aina taustasäikeissä, jotta käyttöliittymä pysyy jatkuvasti reagoivana.
 
-Projekti on jaettu seuraaviin pääkansioihin ja -tiedostoihin:
+## Arkkitehtuurikaavio (Mermaid)
 
 ```
 NetPilot/
