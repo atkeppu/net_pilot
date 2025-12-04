@@ -9,35 +9,69 @@ logic package.
 
 # From logic.system
 from logic.system import (
-    is_admin,
-    reset_network_stack,
+    create_github_release,
     flush_dns_cache,
+    is_admin,
     release_renew_ip,
+    reset_network_stack,
     terminate_process_by_pid,
-    create_github_release
 )
 
 # From logic.adapters
 from logic.adapters import (
+    disconnect_wifi_and_disable_adapter,
     get_adapter_details,
-    set_network_adapter_status_windows
+    set_network_adapter_status_windows,
 )
 
 # From logic.diagnostics
 from logic.diagnostics import (
+    get_active_connections,
     get_network_diagnostics,
     get_raw_network_stats,
-    get_active_connections,
     run_traceroute
 )
 
 # From logic.wifi
 from logic.wifi import (
-    list_wifi_networks,
-    get_current_wifi_details,
-    connect_to_wifi_network,
     disconnect_wifi,
+    get_current_wifi_details,
     get_saved_wifi_profiles,
+    list_wifi_networks,
+)
+
+# From logic.wifi_profile_manager
+from logic.wifi_profile_manager import (
+    connect_to_wifi_network,
     connect_with_profile_name,
     delete_wifi_profile
 )
+
+# Explicitly define the public API of this facade module.
+__all__ = [
+    # system
+    'create_github_release',
+    'flush_dns_cache',
+    'is_admin',
+    'release_renew_ip',
+    'reset_network_stack',
+    'terminate_process_by_pid',
+    # adapters
+    'disconnect_wifi_and_disable_adapter',
+    'get_adapter_details',
+    'set_network_adapter_status_windows',
+    # diagnostics
+    'get_active_connections',
+    'get_network_diagnostics',
+    'get_raw_network_stats',
+    'run_traceroute',
+    # wifi
+    'disconnect_wifi',
+    'get_current_wifi_details',
+    'get_saved_wifi_profiles',
+    'list_wifi_networks',
+    # wifi_profile_manager
+    'connect_to_wifi_network',
+    'connect_with_profile_name',
+    'delete_wifi_profile',
+]

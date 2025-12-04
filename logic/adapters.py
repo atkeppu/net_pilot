@@ -1,54 +1,30 @@
-import subprocess
 import json
-import base64
 import logging
+import time
+import os
 
 from exceptions import NetworkManagerError
+from .command_utils import run_external_ps_script, run_ps_command
+from .wifi import disconnect_wifi, get_current_wifi_details
 
 logger = logging.getLogger(__name__)
 
-def _run_ps_command(script: str) -> str:
-    """
-    Runs a PowerShell script safely using -EncodedCommand.
-    Returns the decoded stdout string.
-    """
-    try:
-        encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
-        command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
-        result = subprocess.run(command, shell=False, check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        return result.stdout.decode('utf-8', errors='ignore')
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        raise NetworkManagerError(f"PowerShell command failed: {e}") from e
+# Constants for the disconnect-and-disable workflow
+DISCONNECT_TIMEOUT_SECONDS = 5
+POLL_INTERVAL_SECONDS = 1
 
 def get_adapter_details() -> list[dict]:
     """
-    Retrieves detailed information for all physical network adapters using PowerShell.
+    Retrieves detailed information for all physical network adapters by running
+    an optimized external PowerShell script.
     """
-    ps_script = (
-        "Get-CimInstance -Class Win32_NetworkAdapter | Where-Object { $_.PhysicalAdapter } | ForEach-Object {"
-        "    $netAdapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex;"
-        "    $ip4 = (Get-NetIPAddress -InterfaceIndex $_.InterfaceIndex -AddressFamily IPv4).IPAddress;"
-        "    $ip6 = (Get-NetIPAddress -InterfaceIndex $_.InterfaceIndex -AddressFamily IPv6).IPAddress;"
-        "    [PSCustomObject]@{ "
-        "        Name = $netAdapter.Name;"
-        "        InterfaceDescription = $netAdapter.InterfaceDescription;"
-        "        MacAddress = $netAdapter.MacAddress;"
-        "        LinkSpeed = $netAdapter.LinkSpeed;"
-        "        Status = $netAdapter.Status;"
-        "        DriverVersion = $netAdapter.DriverVersion;"
-        "        DriverDate = $netAdapter.DriverDate;"
-        "        ComponentID = $netAdapter.ComponentID;"
-        "        IPv4Address = $ip4;"
-        "        IPv6Address = $ip6;"
-        "        NetConnectionStatus = $_.NetConnectionStatus"
-        "    }"
-        "} | ConvertTo-Json"
-    )
-    
     try:
-        result_json = _run_ps_command(ps_script)
+        result_json = run_external_ps_script('Get-AdapterDetails.ps1')
+        # If the script returns nothing, treat it as an empty list of adapters.
+        if not result_json:
+            return []
         adapters = json.loads(result_json)
-        
+
         if not isinstance(adapters, list):
             adapters = [adapters]
 
@@ -60,35 +36,66 @@ def get_adapter_details() -> list[dict]:
     except (json.JSONDecodeError, NetworkManagerError) as e:
         raise NetworkManagerError(f"Failed to parse adapter details from PowerShell: {e}") from e
 
+def _handle_adapter_status_error(error: NetworkManagerError, adapter_name: str, action: str):
+    """Analyzes a NetworkManagerError and re-raises a more specific one if possible."""
+    error_str = str(error).lower()
+
+    # Check for the specific "cannot disable" error to provide a helpful hint.
+    if action == 'disable' and ("cannot be disabled" in error_str or "ei voi poistaa käytöstä" in error_str):
+        raise NetworkManagerError(
+            f"Cannot disable '{adapter_name}' while it is connected to a Wi-Fi network.",
+            code='WIFI_CONNECTED_DISABLE_FAILED'
+        ) from error
+
+    # Check for "already in state" error.
+    # The message is typically "The object is already in the state 'Enabled'."
+    if "object is already in the state" in error_str:
+        raise NetworkManagerError(f"Adapter '{adapter_name}' is already {action}d.") from error
+
+    # For all other errors, re-raise a generic but informative exception.
+    raise NetworkManagerError(f"Failed to {action} adapter '{adapter_name}':\n{error}") from error
+
 def set_network_adapter_status_windows(adapter_name: str, action: str):
     """
     Enables or disables a network adapter on Windows using PowerShell.
     This version does not proactively check Wi-Fi status, relying on the OS to fail if needed.
     """
     if action not in ['enable', 'disable']:
-        raise ValueError("Action must be 'enable' or 'disable'.")
+        raise ValueError(f"Invalid action '{action}'. Must be 'enable' or 'disable'.")
 
     # Using PowerShell is more robust than netsh for enabling/disabling.
-    if action == 'enable':
-        ps_script = f"Enable-NetAdapter -Name '{adapter_name}' -Confirm:$false"
-    else:
-        ps_script = f"Disable-NetAdapter -Name '{adapter_name}' -Confirm:$false"
+    ps_command = action.capitalize() # Converts 'enable' -> 'Enable', 'disable' -> 'Disable'
+    ps_script = f"{ps_command}-NetAdapter -Name '{adapter_name}' -Confirm:$false"
 
     try:
-        _run_ps_command(ps_script)
+        run_ps_command(ps_script)
     except NetworkManagerError as e:
-        # Check for the specific "cannot disable" error to provide a helpful hint.
-        error_str = str(e).lower()
-        if action == 'disable' and ("cannot be disabled" in error_str or "ei voi poistaa käytöstä" in error_str):
-            raise NetworkManagerError(
-                f"Cannot disable '{adapter_name}' while it is connected to a Wi-Fi network.",
-                code='WIFI_CONNECTED_DISABLE_FAILED'
-            ) from e
-        
-        # Check for "already in state" error
-        adapters = get_adapter_details()
-        selected_adapter = next((a for a in adapters if a.get('Name') == adapter_name), None)
-        if selected_adapter and selected_adapter.get('admin_state', '').lower() == action + 'd':
-            raise NetworkManagerError(f"Adapter '{adapter_name}' is already {action}d.") from e
+        _handle_adapter_status_error(e, adapter_name, action)
 
-        raise NetworkManagerError(f"Failed to {action} adapter '{adapter_name}':\n{e}") from e
+def disconnect_wifi_and_disable_adapter(adapter_name: str):
+    """
+    A multi-step workflow to first disconnect from Wi-Fi, then disable the adapter.
+    Yields status messages for the UI to consume.
+    """
+    yield "Step 1/3: Disconnecting from Wi-Fi..."
+    try:
+        disconnect_wifi()
+    except NetworkManagerError as e:
+        # If disconnect fails (e.g., already disconnected), log it but proceed.
+        # The next step will confirm the actual connection status.
+        logger.warning("Disconnect command failed, proceeding to check status. Error: %s", e)
+
+    yield "Step 2/3: Confirming disconnection..."
+    start_time = time.time()
+    while time.time() - start_time < DISCONNECT_TIMEOUT_SECONDS:
+        if get_current_wifi_details() is None:
+            break  # Disconnection confirmed
+        time.sleep(POLL_INTERVAL_SECONDS)
+    else:
+        # If the loop finishes without breaking, the timeout was reached.
+        raise NetworkManagerError(f"Failed to confirm Wi-Fi disconnection within {DISCONNECT_TIMEOUT_SECONDS} seconds.")
+
+    yield f"Step 3/3: Disabling adapter '{adapter_name}'..."
+    set_network_adapter_status_windows(adapter_name, 'disable')
+
+    yield f"Successfully disabled '{adapter_name}'."

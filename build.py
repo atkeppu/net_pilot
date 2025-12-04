@@ -3,6 +3,7 @@ import sys
 import os
 
 from pathlib import Path
+import re
 import shutil
 
 # Define app name directly in the build script to avoid import-related file locks.
@@ -10,6 +11,36 @@ APP_NAME = "NetPilot"
 ENTRY_POINT = "main.py"
 ICON_FILE = "icon.ico"
 MANIFEST_FILE = "admin.manifest"
+VERSION_FILE = "version.txt"
+
+def get_app_version() -> str:
+    """Reads the app version from the VERSION file."""
+    try:
+        version_path = Path.cwd() / "VERSION"
+        version = version_path.read_text(encoding="utf-8").strip()
+        print(f"   ...Löydetty versio: {version}")
+        return version
+    except FileNotFoundError:
+        raise RuntimeError("VERSION file not found in the project root.")
+
+def create_version_file(version: str):
+    """Creates a version file for PyInstaller."""
+    print("-> Luodaan versiotiedostoa...")
+    version_info_template = """
+# UTF-8
+VSVersionInfo(
+  ffi=VS_FIXEDFILEINFO(
+    filevers=({file_version}, 0),
+    prodvers=({prod_version}, 0),
+    mask=0x3f, flags=0x0, os=0x40004, type=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable(u'040904B0', [StringStruct(u'FileDescription', u'{app_name}'), StringStruct(u'FileVersion', u'{version_str}'), StringStruct(u'InternalName', u'{app_name}'), StringStruct(u'LegalCopyright', u'© Sami Turpeinen. All rights reserved.'), StringStruct(u'OriginalFilename', u'{app_name}.exe'), StringStruct(u'ProductName', u'{app_name}'), StringStruct(u'ProductVersion', u'{version_str}')])]), 
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])])
+"""
+    version_info = version_info_template.format(file_version=version.replace('.', ','), prod_version=version.replace('.', ','), app_name=APP_NAME, version_str=version)
+    with open(VERSION_FILE, "w", encoding="utf-8") as f:
+        f.write(version_info)
+    print(f"   ...{VERSION_FILE} luotu.")
 
 def run_command(command: list[str], description: str):
     """Runs a command line command, shows its status, and handles errors."""
@@ -23,23 +54,23 @@ def run_command(command: list[str], description: str):
             text=True, 
             encoding='utf-8'
         )
-        print("   ...Valmis.")
+        print("   ...✅ Valmis.")
         # Print PyInstaller's final summary, it's often useful.
-        if "pyinstaller" in command[0].lower():
+        if "pyinstaller" in " ".join(command).lower():
              print("\n--- PyInstaller Yhteenveto ---")
              print(process.stdout)
              print("--------------------------")
 
     except FileNotFoundError:
-        print(f"   ...VIRHE: Komentoa '{command[0]}' ei löytynyt. Onko se asennettu?", file=sys.stderr)
+        print(f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Onko se asennettu?", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"   ...EPÄONNISTUI! Komento '{' '.join(command)}' palautti virhekoodin.", file=sys.stderr)
+        print(f"   ...❌ EPÄONNISTUI! Komento '{' '.join(command)}' palautti virhekoodin.", file=sys.stderr)
         print("\n--- VIRHE ---", file=sys.stderr)
         # Show the error message, which is often more useful than just the exit code.
         error_output = e.stderr.strip() or e.stdout.strip()
         print(error_output, file=sys.stderr)
-        print("-------------", file=sys.stderr)
+        print("-------------", file=sys.stderr) # type: ignore
         sys.exit(1)
 
 def clean_previous_builds():
@@ -50,11 +81,15 @@ def clean_previous_builds():
     for path_item in [project_root / 'build', project_root / 'dist']:
         if path_item.exists():
             shutil.rmtree(path_item)
-            print(f"   ...Poistettu kansio: {path_item}")
+            print(f"   ...ℹ️ Poistettu kansio: {path_item}")
     
     for spec_file in project_root.glob('*.spec'):
         spec_file.unlink()
-        print(f"   ...Poistettu tiedosto: {spec_file}")
+        print(f"   ...ℹ️ Poistettu tiedosto: {spec_file}")
+    
+    if os.path.exists(VERSION_FILE):
+        os.remove(VERSION_FILE)
+        print(f"   ...ℹ️ Poistettu tiedosto: {VERSION_FILE}")
     print("   ...Valmis.")
 
 def main():
@@ -68,25 +103,36 @@ def main():
         print("PyInstalleria ei löytynyt. Asennetaan se nyt...")
         run_command([sys.executable, "-m", "pip", "install", "pyinstaller"], "Asennetaan PyInstaller")
 
-    # 2. Clean up old artifacts before building
-    clean_previous_builds()
+    try:
+        # 2. Clean up old artifacts before building
+        clean_previous_builds()
 
-    # 3. Define and run the PyInstaller command
-    pyinstaller_command = [
-        sys.executable,     # Use 'python.exe'
-        "-m", "PyInstaller",# to run the PyInstaller module
-        "--noconfirm",      # Ylikirjoittaa aiemmat build-kansion tiedostot ilman kysymystä
-        "--onefile",        # Luo yhden suoritettavan tiedoston
-        "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa
-        f"--icon={ICON_FILE}",
-        f"--manifest={MANIFEST_FILE}",
-        f"--name={APP_NAME}",
-        ENTRY_POINT
-    ]
-    run_command(pyinstaller_command, "Rakennetaan .exe-tiedostoa PyInstallerilla")
+        # 3. Get version and create version file
+        app_version = get_app_version()
+        create_version_file(app_version)
 
-    print(f"\n--- VALMIS! ---")
-    print(f"✅ {APP_NAME}.exe löytyy nyt kansiosta: {Path.cwd() / 'dist'}")
+        # 4. Define and run the PyInstaller command
+        pyinstaller_command = [
+            sys.executable,     # Use 'python.exe'
+            "-m", "PyInstaller",# to run the PyInstaller module
+            "--noconfirm",      # Ylikirjoittaa aiemmat build-kansion tiedostot ilman kysymystä
+            "--onefile",        # Luo yhden suoritettavan tiedoston
+            "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa
+            f"--icon={ICON_FILE}",
+            f"--manifest={MANIFEST_FILE}",
+            f"--version-file={VERSION_FILE}",
+            f"--name={APP_NAME}",
+            ENTRY_POINT
+        ]
+        run_command(pyinstaller_command, "Rakennetaan .exe-tiedostoa PyInstallerilla")
+
+        print(f"\n--- VALMIS! ---")
+        print(f"✅ {APP_NAME}.exe löytyy nyt kansiosta: {Path.cwd() / 'dist'}")
+    finally:
+        # 5. Final cleanup: Ensure the temporary version file is always removed.
+        if os.path.exists(VERSION_FILE):
+            os.remove(VERSION_FILE)
+            print(f"-> ℹ️ Siivottu väliaikainen tiedosto: {VERSION_FILE}")
 
 if __name__ == "__main__":
     main()

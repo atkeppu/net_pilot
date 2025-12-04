@@ -11,7 +11,9 @@
 - [Ominaisuudet](#ominaisuudet)
 - [Asennus ja käyttö](#asennus-ja-käyttö)
 - [Vaatimukset](#vaatimukset)
-- [Kehittäjille](#kehittäjille)
+- [Kehitys](#kehitys)
+- [Kehitysprosessi ja Tekoälyn Rooli](#kehitysprosessi-ja-tekoälyn-rooli)
+- [Osallistuminen (Contributing)](#osallistuminen-contributing)
 - [Lisenssi](#lisenssi)
 
 ## Ominaisuudet
@@ -34,37 +36,64 @@
 
 ## Asennus ja käyttö
 
-Ohjelma ei vaadi asennusta.
+### Valmis sovellus (.exe)
 
-1.  Lataa uusin versio `dist`-kansiosta (jos olet paketoinut sen PyInstallerilla) tai suoraan lähdekoodista.
-2.  Käynnistä `NetPilot.exe`-tiedosto.
-3.  Ohjelma vaatii **ylläpitäjän oikeudet** toimiakseen oikein.
+1.  Lataa uusin `NetPilot.exe` projektin Releases-sivulta (linkki lisätään myöhemmin).
+2.  Käynnistä ladattu tiedosto. Asennusta ei vaadita.
+
+> **Huom!** Ohjelma vaatii **ylläpitäjän oikeudet** toimiakseen oikein, koska se muokkaa verkkosovittimien asetuksia.
+
+### Lähdekoodista suorittaminen
+
+1.  Kloonaa tämä repositorio: `git clone https://github.com/atkeppu/NetPilot.git`
+2.  Siirry projektihakemistoon: `cd NetPilot`
+3.  Käynnistä pääskripti ylläpitäjän oikeuksin: `python main.py`
+    *   Sovelluksella ei ole ulkoisia ajonaikaisia riippuvuuksia.
 
 ## Vaatimukset
 
 *   Windows 10 tai uudempi.
 *   Python 3.10+ (jos suoritetaan lähdekoodista).
+*   GitHub CLI (jos käytät `git_helper.py`-skriptiä).
 
-## Kehittäjille
+## Kehitys
 
 Tämä osio on tarkoitettu kehittäjille, jotka haluavat muokata koodia tai rakentaa ohjelman itse.
 
-### Suoritettavan .exe-tiedoston rakentaminen
+### Kehitysympäristön pystyttäminen
 
-Ohjelma käyttää `icon.ico`-tiedostoa. Jos haluat luoda oman `.ico`-tiedoston `.png`-kuvasta, voit käyttää esimerkiksi FreeConvert.com-palvelua.
+1.  Varmista, että sinulla on Python 3.10+ asennettuna.
+2.  Kloonaa repositorio ja siirry sen juurihakemistoon.
+3.  (Suositus) Luo ja aktivoi virtuaaliympäristö:
+    ```bash
+    python -m venv venv
+    .\venv\Scripts\activate
+    ```
+4.  Asenna kehityksessä tarvittavat riippuvuudet:
+    ```bash
+    pip install -r requirements-dev.txt
+    ```
 
----
+### Sovelluksen rakentaminen (.exe)
 
-Voit paketoida sovelluksen yhdeksi `.exe`-tiedostoksi käyttämällä mukana tulevaa `build.py`-skriptiä. Tämä vaatii PyInstallerin, mutta skripti asentaa sen automaattisesti tarvittaessa.
-
-1.  Avaa komentorivi projektin juurihakemistoon.
-2.  Suorita komento:
+Voit paketoida sovelluksen yhdeksi `.exe`-tiedostoksi `build.py`-skriptillä.
+1.  Varmista, että olet asentanut kehitysriippuvuudet (katso yllä).
+2.  Suorita build-skripti:
     ```bash
     python build.py
     ```
 3.  Valmis `NetPilot.exe`-tiedosto löytyy `dist`-kansiosta.
 
-### Lähdekoodin vieminen uuteen GitHub-projektiin
+### Arkkitehtuurikaavioiden tarkastelu
+
+`ARCHITECTURE.md`-tiedosto sisältää Mermaid-syntaksilla luotuja kaavioita, jotka visualisoivat sovelluksen rakennetta. Nämä kaaviot eivät välttämättä näy oikein kaikissa Markdown-katseluohjelmissa.
+
+**Suositus:** Käytä editoria, joka tukee Mermaid-laajennuksia. Esimerkiksi:
+
+*   **Visual Studio Code:** Asenna laajennus `Markdown Preview Mermaid Support`. Tämän jälkeen kaaviot näkyvät oikein, kun avaat `.md`-tiedoston esikatselun (esim. `Ctrl+Shift+V`).
+*   **GitHub:** Mermaid-kaaviot renderöityvät automaattisesti, kun ne ovat ````mermaid` koodilohkojen sisällä, kuten `ARCHITECTURE.md`-tiedostossa on tehty.
+
+### Kehittäjän aputyökalut
 
 `git_helper.py`-skripti on apuväline, joka automatisoi uuden GitHub-projektin luomisen ja olemassa olevan koodin lähettämisen sinne. Tämä on hyödyllistä, kun aloitat uuden projektin paikallisesti ja haluat julkaista sen GitHubiin vaivattomasti.
 

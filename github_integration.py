@@ -1,4 +1,5 @@
 import subprocess
+import os
 from exceptions import NetworkManagerError
 
 def check_github_cli_auth() -> tuple[bool, str]:
@@ -10,11 +11,12 @@ def check_github_cli_auth() -> tuple[bool, str]:
         is_ok is True if everything is fine, False otherwise.
         message contains the status or error.
     """
+    # This flag prevents a console window from flashing on Windows.
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
     try:
-        # Check if gh is installed by checking its version. shell=False is safer.
-        subprocess.run(["gh", "--version"], check=True, capture_output=True, shell=False)
-        # Check authentication status
-        subprocess.run(["gh", "auth", "status"], check=True, capture_output=True, shell=False)
+        subprocess.run(["gh", "auth", "status"], check=True, capture_output=True, shell=False, startupinfo=startupinfo)
         return (True, "GitHub CLI is ready.")
     except FileNotFoundError:
         return (False, "GitHub CLI ('gh') is not installed. Please install it from https://cli.github.com/")
@@ -46,9 +48,17 @@ def publish_to_github(tag: str, repo: str, title: str, notes: str, asset_path: s
         if asset_path:
             command.append(asset_path)
 
-        # Run the command without shell=True
-        result = subprocess.run(command, shell=False, check=True, capture_output=True, text=True, encoding='utf-8')
+        # This flag prevents a console window from flashing on Windows.
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        result = subprocess.run(command, shell=False, check=True, capture_output=True, text=True, encoding='utf-8', startupinfo=startupinfo)
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         error_output = e.stderr.strip() or e.stdout.strip()
+
+        # Provide a more specific error message if the tag already exists.
+        if "release with tag" in error_output and "already exists" in error_output:
+            raise NetworkManagerError(f"A release for tag '{tag}' already exists on GitHub. Please update the version number.") from e
+
         raise NetworkManagerError(f"Failed to create GitHub release for tag {tag}:\n\n{error_output}") from e

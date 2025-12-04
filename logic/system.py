@@ -1,54 +1,21 @@
 import ctypes
-import subprocess
 import logging
 import os
 
 from exceptions import NetworkManagerError
 from github_integration import check_github_cli_auth, publish_to_github
 from gui.constants import GITHUB_REPO, APP_NAME
+from .command_utils import run_system_command
 
 logger = logging.getLogger(__name__)
 
 def is_admin() -> bool:
     """Check if the script is running with administrative privileges on Windows."""
     try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
+        # Returns non-zero if admin, 0 if not.
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except AttributeError:
         return False
-
-def _run_system_command(command: list[str], error_message_prefix: str, check: bool = True):
-    """
-    A helper function to run a system command and handle errors consistently.
-    Raises NetworkManagerError on failure.
-    """
-    logger.debug("Executing system command: %s", " ".join(command))
-    try:
-        # Use text=False to capture raw bytes and decode manually for robustness
-        result = subprocess.run(command, shell=False, check=check, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        if result.returncode != 0 and check:
-            # Manually raise for non-zero exit codes when check=True
-            raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
-        return result
-    except subprocess.CalledProcessError as e:
-        # Safely decode output for error logging
-        try:
-            stdout = e.stdout.decode('oem', errors='ignore').strip() if e.stdout else "None"
-            stderr = e.stderr.decode('oem', errors='ignore').strip() if e.stderr else "None"
-        except AttributeError: # In case stdout/stderr are not bytes
-            stdout = str(e.stdout).strip()
-            stderr = str(e.stderr).strip()
-
-        error_message = (
-            f"{error_message_prefix}\n\n"
-            f"Command: {' '.join(e.cmd)}\n"
-            f"Return Code: {e.returncode}\n"
-            f"Error Output: {stderr}\n"
-            f"Standard Output: {stdout}"
-        )
-        logger.error("System command failed: %s", error_message)
-        raise NetworkManagerError(error_message) from e
-    except FileNotFoundError as e:
-        raise NetworkManagerError(f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
 
 def reset_network_stack():
     """
@@ -56,27 +23,61 @@ def reset_network_stack():
     This action requires a system reboot to complete.
     Raises NetworkManagerError on failure.
     """
-    _run_system_command(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
+    run_system_command(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
 
 def flush_dns_cache():
     """
     Flushes the DNS resolver cache using 'ipconfig /flushdns'.
     Raises NetworkManagerError on failure.
     """
-    _run_system_command(['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
+    run_system_command(['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
 
 def release_renew_ip():
     """
     Releases and renews the IP address for all adapters.
     Raises NetworkManagerError on failure.
     """
-    # First, try to release the IP. We use check=False because this can fail
-    # if no IP is assigned, which is not a critical error. We still log it.
-    release_result = _run_system_command(['ipconfig', '/release'], "Failed to release IP address.", check=False)
-    if release_result.returncode != 0:
-        logger.warning("ipconfig /release finished with a non-zero exit code. This may be normal.")
-    # Then, renew the IP. This is the critical step.
-    _run_system_command(['ipconfig', '/renew'], "Failed to renew IP address.")
+    try:
+        # Step 1: Release the current IP address.
+        # We use check=False because this command can fail gracefully if an adapter
+        # is disconnected or has no IP, which is not a critical error.
+        release_result = run_system_command(['ipconfig', '/release'], "IP address release command finished.", check=False)
+        if release_result.returncode != 0:
+            # Decode output safely for inspection. The error is often in stderr.
+            # The _safe_decode logic is part of run_system_command's error handling,
+            # but here we need to decode the raw bytes ourselves.
+            error_output = (release_result.stderr or release_result.stdout).decode('oem', errors='ignore').strip().lower()
+            
+            # These are common, expected "errors" that we can safely ignore.
+            non_critical_errors = [
+                "no operation can be performed", # Adapter is disconnected
+                "media is disconnected",         # Cable is unplugged
+                "the system cannot find the file specified" # Can occur in some virtual adapter scenarios
+            ]
+            if any(e in error_output for e in non_critical_errors):
+                logger.info("ipconfig /release failed as expected (no address to release or media disconnected).")
+            else:
+                # Log any other non-zero exit codes as a warning, but don't stop the process.
+                logger.warning("ipconfig /release finished with an unexpected non-zero exit code. Error: %s", error_output.strip())
+
+        # Step 2: Renew the IP address. This is the critical step.
+        run_system_command(['ipconfig', '/renew'], "Failed to renew IP address.")
+
+    except NetworkManagerError as e:
+        # Step 3: Handle specific, known errors from the 'renew' step to provide better user feedback.
+        error_str = str(e).lower()
+        if "unable to contact your dhcp server" in error_str:
+            raise NetworkManagerError(
+                "Could not renew IP address: Unable to contact the DHCP server. "
+                "Please check your network connection and router.",
+                code='DHCP_SERVER_UNREACHABLE'
+            ) from e
+        if "no adapter is in the state permissible" in error_str:
+            raise NetworkManagerError(
+                "Could not renew IP address: One or more network adapters are disabled. Please enable them first.",
+                code='ADAPTER_DISABLED'
+            ) from e
+        raise # Re-raise the original, detailed exception for any other errors
 
 def terminate_process_by_pid(pid: int):
     """
@@ -86,10 +87,10 @@ def terminate_process_by_pid(pid: int):
     if pid in [0, 4]: # Do not allow terminating System Idle or System processes
         raise NetworkManagerError("Terminating system-critical processes is not allowed.")
     try:
-        _run_system_command(['taskkill', '/F', '/T', '/PID', str(pid)], f"Failed to terminate process with PID {pid}.")
-    except NetworkManagerError as e:
-        # Re-raise to keep the original detailed message from the helper
-        raise e
+        run_system_command(['taskkill', '/F', '/T', '/PID', str(pid)], f"Failed to terminate process with PID {pid}.")
+    except NetworkManagerError:
+        # Re-raise to keep the original detailed message from the helper.
+        raise
 
 def create_github_release(app_version: str, notes: str) -> str:
     """

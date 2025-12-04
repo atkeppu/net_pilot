@@ -1,26 +1,17 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import queue
-import threading
 
 from app_logic import run_traceroute
 from exceptions import NetworkManagerError
+from .base_window import BaseTaskWindow
 
 
-class TracerouteWindow(tk.Toplevel):
+class TracerouteWindow(BaseTaskWindow):
     """A Toplevel window to run and display traceroute results."""
 
-    def __init__(self, master):
-        super().__init__(master)
-        self.title("Trace Route")
-        self.geometry("600x400")
-
-        self.transient(master)
-        self.grab_set()
-
-        self.queue = queue.Queue()
+    def __init__(self, context):
+        super().__init__(context, title="Trace Route", geometry="600x400")
         self._create_widgets()
-        self.after(100, self._process_queue)
 
     def _create_widgets(self):
         main_frame = ttk.Frame(self, padding="10")
@@ -56,35 +47,31 @@ class TracerouteWindow(tk.Toplevel):
         self.output_text.delete('1.0', tk.END)
         self.output_text.config(state=tk.DISABLED)
 
-        threading.Thread(target=self._execute_trace_in_thread, args=(target,), daemon=True).start()
+        self._run_background_task(self._execute_trace_in_thread, target, on_complete=self.on_trace_done)
 
     def _execute_trace_in_thread(self, target):
         try:
             for line in run_traceroute(target):
-                self.queue.put({'type': 'line', 'data': line})
+                # Post a UI update function to the main queue
+                self.task_queue.put({'type': 'ui_update', 'func': lambda l=line: self.append_line(l)})
         except NetworkManagerError as e:
-            self.queue.put({'type': 'error', 'message': str(e)})
-        finally:
-            # Signal that the process is complete
-            self.queue.put({'type': 'done'})
+            # BaseTaskWindow's error handling will catch this and post a generic_error.
+            # We can still append the error line for immediate feedback in the output.
+            self.task_queue.put({'type': 'ui_update', 'func': lambda err=e: self.append_line(f"\nERROR: {err}\n")})
 
-    def _process_queue(self):
-        try:
-            while True:
-                message = self.queue.get_nowait()
-                msg_type = message.get('type')
+    def append_line(self, line: str):
+        """Appends a line of text to the output widget."""
+        # Prevent errors if the window is closed while the trace is running.
+        if not self.output_text.winfo_exists():
+            return
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.insert(tk.END, line + "\n")
+        self.output_text.see(tk.END)  # Auto-scroll
+        self.output_text.config(state=tk.DISABLED)
 
-                self.output_text.config(state=tk.NORMAL)
-                if msg_type == 'done':
-                    self.start_button.config(state=tk.NORMAL)
-                elif msg_type == 'line':
-                    self.output_text.insert(tk.END, message.get('data', '') + "\n")
-                elif msg_type == 'error':
-                    self.output_text.insert(tk.END, f"\nERROR: {message.get('message', 'Unknown error')}\n")
-                
-                self.output_text.see(tk.END)  # Auto-scroll
-                self.output_text.config(state=tk.DISABLED)
-        except queue.Empty:
-            pass
-        finally:
-            self.after(100, self._process_queue)
+    def on_trace_done(self):
+        """Re-enables the start button when the trace is complete."""
+        # Check if the widget still exists before trying to configure it.
+        # This prevents an error if the window was closed during the trace.
+        if self.start_button.winfo_exists():
+            self.start_button.config(state=tk.NORMAL)

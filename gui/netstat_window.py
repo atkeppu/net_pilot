@@ -1,29 +1,20 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import queue
-import threading
 
 from app_logic import get_active_connections, terminate_process_by_pid
 from exceptions import NetworkManagerError
+from .base_window import BaseTaskWindow
 
 
-class NetstatWindow(tk.Toplevel):
+class NetstatWindow(BaseTaskWindow):
     """A Toplevel window to display active network connections (netstat)."""
 
-    def __init__(self, master):
-        super().__init__(master)
-        self.title("Active Network Connections")
-        self.geometry("700x500")
-
-        self.transient(master)
-        self.grab_set()
-
-        self.queue = queue.Queue()
+    def __init__(self, context):
+        super().__init__(context, title="Active Network Connections", geometry="700x500")
         self.filter_var = tk.StringVar(value="All")
         self.connections_data = []
-
+        
         self._create_widgets()
-        self.after(100, self._process_queue)
         self.refresh_connections()
 
     def _create_widgets(self):
@@ -68,31 +59,20 @@ class NetstatWindow(tk.Toplevel):
     def refresh_connections(self):
         """Starts a background thread to fetch connection data."""
         self.refresh_button.config(state=tk.DISABLED)
-        threading.Thread(target=self._execute_refresh_in_thread, daemon=True).start()
+        self._run_background_task(self._execute_refresh_in_thread, on_complete=self._on_refresh_complete)
 
     def _execute_refresh_in_thread(self):
         """Worker function to get connections and put them in the queue."""
         try:
-            connections = get_active_connections()
-            self.queue.put({'type': 'connections_data', 'data': connections})
+            data = get_active_connections()
+            # Post a UI update function to the main queue
+            self.task_queue.put({'type': 'ui_update', 'func': lambda: self.populate_tree(data)})
         except NetworkManagerError as e:
-            self.queue.put({'type': 'error', 'message': f"Could not get active connections:\n\n{e}"})
+            self.task_queue.put({'type': 'generic_error', 'description': 'getting active connections', 'error': e})
 
-    def _process_queue(self):
-        """Processes messages from the background thread."""
-        try:
-            message = self.queue.get_nowait()
-            if message['type'] == 'connections_data':
-                self.connections_data = message['data']
-                self._apply_filter()
-                self.refresh_button.config(state=tk.NORMAL)
-            elif message['type'] == 'error':
-                messagebox.showerror("Error", message['message'], parent=self)
-                self.refresh_button.config(state=tk.NORMAL)
-        except queue.Empty:
-            pass
-        finally:
-            self.after(100, self._process_queue)
+    def _on_refresh_complete(self):
+        """Called when the refresh task is finished, regardless of outcome."""
+        self.refresh_button.config(state=tk.NORMAL)
 
     def _apply_filter(self):
         """Populates the treeview based on the current data and filter."""
@@ -110,6 +90,11 @@ class NetstatWindow(tk.Toplevel):
                     conn.get('State', 'N/A'),
                     conn.get('ProcessName', 'N/A')
                 ))
+
+    def populate_tree(self, data):
+        """Receives data and updates the tree."""
+        self.connections_data = data
+        self._apply_filter()
 
     def _sort_by_column(self, col, reverse):
         data = [(self.tree.set(child, col), child) for child in self.tree.get_children('')]

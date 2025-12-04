@@ -1,0 +1,106 @@
+import unittest
+from unittest.mock import patch, MagicMock
+import io
+import json
+import sys
+import os
+
+# Add the project root to the Python path to allow importing from 'logic'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from logic.diagnostics import run_traceroute, get_network_diagnostics, get_raw_network_stats, get_active_connections
+from exceptions import NetworkManagerError
+
+class TestTraceroute(unittest.TestCase):
+    """
+    Unit tests for the run_traceroute function.
+    """
+
+    @patch('logic.diagnostics.run_ps_command')
+    def test_run_traceroute_success(self, mock_run_ps_command):
+        """Test a successful traceroute execution, yielding each line."""
+        # Arrange: Simulate the generator output from the PowerShell command.
+        expected = [
+            "Tracing route to 8.8.8.8",
+            "  1    <1 ms    <1 ms    <1 ms  192.168.1.1",
+            "  2     *        *        *     Request timed out.",
+            "Trace complete."
+        ]
+        mock_run_ps_command.return_value = iter(expected)
+
+        # Act: Collect the yielded lines from the function.
+        result = list(run_traceroute("8.8.8.8"))
+
+        # Assert
+        self.assertEqual(result, expected)
+        mock_run_ps_command.assert_called_once()
+        self.assertIn("Test-NetConnection -ComputerName '8.8.8.8' -TraceRoute", mock_run_ps_command.call_args[0][0])
+
+    def test_run_traceroute_invalid_target(self):
+        """Test that an invalid target raises a NetworkManagerError."""
+        # Arrange: An invalid target string with special characters.
+        invalid_target = "8.8.8.8; rm -rf /"
+
+        # Act & Assert: Check that the correct exception is raised.
+        with self.assertRaises(NetworkManagerError) as cm:
+            # We need to consume the generator to trigger the exception.
+            list(run_traceroute(invalid_target))
+        
+        self.assertIn("Invalid target specified", str(cm.exception))
+
+    @patch('logic.diagnostics.run_ps_command')
+    def test_run_traceroute_command_error(self, mock_run_ps_command):
+        """Test that a NetworkManagerError from the command is propagated."""
+        # Arrange: Configure the mock to raise NetworkManagerError.
+        mock_run_ps_command.side_effect = NetworkManagerError("PowerShell execution failed.")
+
+        # Act & Assert
+        with self.assertRaises(NetworkManagerError) as cm:
+            list(run_traceroute("8.8.8.8"))
+        
+        self.assertIn("PowerShell execution failed", str(cm.exception))
+
+class TestDiagnosticsJsonParsing(unittest.TestCase):
+    """
+    Unit tests for JSON parsing in the diagnostics module.
+    """
+
+    @patch('logic.diagnostics.run_external_ps_script')
+    def test_get_network_diagnostics_invalid_json(self, mock_run_script):
+        """Test that get_network_diagnostics raises an error on invalid JSON."""
+        mock_run_script.return_value = "{not-json"
+        with self.assertRaises(NetworkManagerError):
+            get_network_diagnostics()
+
+    @patch('logic.diagnostics.run_external_ps_script')
+    def test_get_raw_network_stats_invalid_json(self, mock_run_script):
+        """Test that get_raw_network_stats returns an empty dict on invalid JSON."""
+        mock_run_script.return_value = "[{not-json}]"
+        result = get_raw_network_stats()
+        self.assertEqual(result, {})
+
+    @patch('logic.diagnostics.run_external_ps_script')
+    def test_get_active_connections_invalid_json(self, mock_run_script):
+        """Test that get_active_connections raises an error on invalid JSON."""
+        mock_run_script.return_value = "invalid"
+        with self.assertRaises(NetworkManagerError):
+            get_active_connections()
+
+    @patch('logic.diagnostics.run_external_ps_script')
+    def test_get_active_connections_single_object(self, mock_run_script):
+        """Test that a single JSON object is correctly wrapped in a list."""
+        # Arrange
+        mock_data = {"Proto": "TCP", "Local": "127.0.0.1:123"}
+        mock_run_script.return_value = json.dumps(mock_data)
+
+        # Act
+        result = get_active_connections()
+
+        # Assert
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], mock_data)
+
+
+if __name__ == '__main__':
+    unittest.main()
