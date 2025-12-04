@@ -1,0 +1,2 @@
+# This project currently has no external Python package dependencies.
+# All functionality is based on Python's standard library and Windows system commands.

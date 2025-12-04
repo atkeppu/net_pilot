@@ -1,0 +1,76 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import os
+
+from app_logic import create_github_release
+from exceptions import NetworkManagerError
+
+# Import constants from the central constants file
+from .constants import APP_VERSION, GITHUB_REPO, APP_NAME
+
+
+class PublishWindow(tk.Toplevel):
+    """
+    A Toplevel window for creating a new GitHub release.
+    """
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Publish to GitHub")
+        self.transient(master)
+        self.grab_set()
+        self.geometry("450x300")
+
+        self._create_widgets()
+
+    def _create_widgets(self):
+        """Creates and places all UI widgets in the window."""
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Configuration ---
+        asset_path = os.path.join("dist", f"{APP_NAME}.exe")
+
+        # --- Dialog content ---
+        ttk.Label(frame, text="You are about to create a new release on GitHub.").pack(pady=5)
+
+        info_text = (
+            f"Repository: {GITHUB_REPO}\n"
+            f"Version Tag: v{APP_VERSION}\n"
+            f"Asset to Upload: {asset_path}"
+        )
+        ttk.Label(frame, text=info_text, justify=tk.LEFT).pack(pady=10, anchor=tk.W)
+
+        if not os.path.exists(asset_path):
+            warning_label = ttk.Label(
+                frame,
+                text=f"Info: Asset file not found at '{asset_path}'.\nRelease will be created without it.",
+                foreground="orange"
+            )
+            warning_label.pack(pady=5)
+        
+        ttk.Label(frame, text="Release Notes (optional):").pack(anchor=tk.W)
+        self.notes_text = tk.Text(frame, height=4, width=50)
+        self.notes_text.pack(pady=5, fill=tk.X, expand=True)
+        self.notes_text.insert("1.0", f"Official release of version {APP_VERSION}.")
+
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
+        
+        self.publish_button = ttk.Button(button_frame, text="Publish Release", command=self._do_publish)
+        self.publish_button.pack(side=tk.RIGHT)
+        
+        ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side=tk.RIGHT, padx=5)
+
+    def _do_publish(self):
+        """Handles the actual publishing logic."""
+        notes = self.notes_text.get("1.0", tk.END).strip()
+        self.publish_button.config(state=tk.DISABLED)
+        self.update_idletasks()
+
+        try:
+            release_url = create_github_release(APP_VERSION, notes)
+            messagebox.showinfo("Success", f"Successfully created release!\n\nURL: {release_url}", parent=self)
+            self.destroy()
+        except NetworkManagerError as e:
+            messagebox.showerror("Publish Failed", str(e), parent=self)
+            self.publish_button.config(state=tk.NORMAL)
