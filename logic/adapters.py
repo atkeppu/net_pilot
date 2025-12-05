@@ -78,13 +78,8 @@ def disconnect_wifi_and_disable_adapter(adapter_name: str):
     Yields status messages for the UI to consume.
     """
     yield "Step 1/3: Disconnecting from Wi-Fi..."
-    try:
-        disconnect_wifi()
-    except NetworkManagerError as e:
-        # If disconnect fails (e.g., already disconnected), log it but proceed.
-        # The next step will confirm the actual connection status.
-        logger.warning("Disconnect command failed, proceeding to check status. Error: %s", e)
-
+    # This function now handles the "already disconnected" case gracefully.
+    disconnect_wifi()
     yield "Step 2/3: Confirming disconnection..."
     start_time = time.time()
     while time.time() - start_time < DISCONNECT_TIMEOUT_SECONDS:

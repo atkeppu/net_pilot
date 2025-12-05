@@ -1,63 +1,66 @@
-import sys
-import os
 import tkinter as tk
 from tkinter import messagebox
 import logging
-from pathlib import Path
+import sys
+import os
 
-from logic.system import is_admin
-from gui.main_window import NetworkManagerApp, AppContext
-from logger_setup import setup_logging
-
-def resource_path(relative_path: str) -> Path:
-    """Hakee absoluuttisen polun resurssiin, toimii sekä kehityksessä että PyInstaller-paketissa."""
-    try:
-        # PyInstaller luo väliaikaisen kansion ja tallentaa polun _MEIPASS-muuttujaan.
-        base_path = Path(sys._MEIPASS)
-    except AttributeError:
-        # Jos ei ajeta paketista, peruspolku on tämän tiedoston hakemisto.
-        base_path = Path(__file__).parent.absolute()
-
-    return base_path / relative_path
-
-def _show_startup_error_and_exit(title: str, message: str):
-    """Displays a critical error message during startup and exits the application."""
-    # Create a hidden root window for the messagebox to prevent visual glitches.
-    root = tk.Tk()
-    root.withdraw()
-    messagebox.showerror(title, message)
-    root.destroy()
-    sys.exit(1)
-
-def _run_pre_flight_checks():
-    """Performs critical startup checks before initializing the UI."""
-    logging.info("Performing pre-flight checks...")
-    if sys.platform != "win32":
-        logging.error("Unsupported OS detected: %s", sys.platform)
-        _show_startup_error_and_exit("Unsupported OS", "This application is designed for Windows only.")
-
-    if not is_admin():
-        logging.warning("Application not running with admin rights.")
-        _show_startup_error_and_exit("Admin Rights Required", "This application requires administrative privileges. Please run as administrator.")
-    logging.info("Pre-flight checks passed. Initializing main application.")
+import logger_setup
+from localization import initialize_language, get_string, set_language
+from logic.system import is_admin, relaunch_as_admin
+from gui.main_window import NetworkManagerApp
+from gui.app_context import AppContext
 
 def main():
-    """Main function to run the application."""
-    setup_logging()
-    logging.info("Application starting up.")
+    """Main entry point for the application."""
+    # --- 1. Initial Setup ---
+    # Set up logging as the very first thing.
+    log_file_path = logger_setup.setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("-----------------------------------------------------")
+    logger.info("Application starting up.")
 
+    # Initialize language settings
+    initialize_language()
+
+    # --- 2. Pre-flight Checks ---
+    logger.info("Performing pre-flight checks...")
+    if sys.platform != "win32":
+        logger.critical("Unsupported OS: %s", sys.platform)
+        messagebox.showerror(get_string('unsupported_os_title'), get_string('unsupported_os_message'))
+        return
+
+    if not is_admin():
+        logger.warning("Application not running with admin rights. Attempting automatic relaunch.")
+        try:
+            # Directly attempt to relaunch as admin without asking the user.
+            # The OS will show a UAC prompt, which the user can accept or deny.
+            relaunch_as_admin()
+        except Exception as e:
+            logger.critical("Failed to relaunch with admin rights.", exc_info=True)
+            message = get_string('relaunch_failed_message') + get_string('log_file_hint', log_file_path=log_file_path)
+            messagebox.showerror(get_string('relaunch_failed_title'), message)
+        # The current non-admin instance will exit, regardless of whether the relaunch succeeds.
+        return
+
+    logger.info("Pre-flight checks passed. Initializing main application.")
+
+    # --- 3. Application Initialization ---
     try:
-        _run_pre_flight_checks()
+        # The AppContext holds the shared state and logic handlers.
         context = AppContext()
+        
+        # The NetworkManagerApp is the main Tkinter window.
         app = NetworkManagerApp(context)
+        
+        # Start the Tkinter event loop.
         app.mainloop()
-        logging.info("Application shut down gracefully.")
-    except tk.TclError as e:
-        logging.critical("A critical UI error occurred.", exc_info=True)
-        messagebox.showerror("UI Error", f"A critical error occurred with the user interface components. Please check the log file.\n\nError: {e}")
+
     except Exception as e:
-        logging.critical("An unhandled exception occurred in the main application loop.", exc_info=True)
-        messagebox.showerror("Fatal Error", "A critical error occurred and the application must close. Please check the log file for details.")
+        logger.critical("An unhandled exception occurred in the main application.", exc_info=True)
+        message = get_string('fatal_error_message') + get_string('log_file_hint', log_file_path=log_file_path)
+        messagebox.showerror(get_string('fatal_error_title'), message)
+    finally:
+        logger.info("Application shut down gracefully.\n")
 
 if __name__ == "__main__":
     main()

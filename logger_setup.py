@@ -1,50 +1,85 @@
 import logging
+import logging.handlers
 import os
-from logging.handlers import RotatingFileHandler
 import sys
+from pathlib import Path
 
-LOG_FILE_NAME = "debug.log"
+# --- Logging Configuration ---
 
-def get_application_path() -> str:
-    """Gets the path of the executable or script."""
-    # Check if the application is running as a frozen executable (e.g., PyInstaller)
-    if getattr(sys, 'frozen', False):
-        # If so, the path is the directory of the executable
-        return os.path.dirname(sys.executable)
-    else:
-        # Otherwise, it's running as a script, so use the script's directory
-        return os.path.dirname(os.path.abspath(__file__))
+# Use the user's AppData/Roaming directory for logs. This is the standard for
+# Windows applications and avoids permission issues with Program Files.
+# Fallback to the script's directory if APPDATA is not set.
+LOG_DIR_PARENT = Path(os.getenv('APPDATA', '.'))
+APP_NAME = "NetPilot"
+LOG_DIR = LOG_DIR_PARENT / APP_NAME / "logs"
+LOG_FILE_NAME = "app.log"
 
-# The log directory will now always be the project's root directory.
-LOG_DIR = get_application_path()
+# Configuration for the RotatingFileHandler
+MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024  # 1 MB
+BACKUP_COUNT = 5  # Keep 5 old log files (e.g., app.log.1, app.log.2, ...)
 
-def get_log_file_path() -> str:
-    """Returns the full path to the log file."""
-    return os.path.join(LOG_DIR, LOG_FILE_NAME)
+def _get_log_level_from_env() -> int:
+    """
+    Gets the logging level from the 'LOG_LEVEL' environment variable.
+    Defaults to logging.INFO if the variable is not set or invalid.
+    """
+    log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+    log_levels = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL,
+    }
+    return log_levels.get(log_level_str, logging.INFO)
 
-def setup_logging():
-    """Configures logging to a rotating file in the application's directory."""
-    log_file = get_log_file_path()
-    
-    # Determine log level from environment variable, defaulting to INFO
-    log_level_str = os.environ.get('LOG_LEVEL', 'INFO').upper()
-    log_level = getattr(logging, log_level_str, logging.INFO)
+def get_log_file_path() -> Path:
+    """Returns the full, absolute path to the log file."""
+    return LOG_DIR / LOG_FILE_NAME
 
-    # Use a rotating file handler to prevent the log file from growing indefinitely
-    # 1MB per file, keeping the last 5 files.
-    # Use UTF-8 for log file encoding for universal compatibility.
-    file_handler = RotatingFileHandler(log_file, maxBytes=1024*1024, backupCount=5, encoding='utf-8')
-    
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
+def setup_logging() -> Path | None:
+    """
+    Configures logging with a RotatingFileHandler and a console handler.
 
+    - Logs are stored in a version-safe, user-specific directory.
+    - Log files rotate to prevent them from growing indefinitely.
+    - If file logging fails, it falls back to console-only logging.
+
+    Returns:
+        The absolute path to the log file if successful, otherwise None.
+    """
+    log_file_path = get_log_file_path()
+    log_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)
-    root_logger.addHandler(file_handler)
+    # Set level from environment variable, defaulting to INFO.
+    # This allows for easy debugging without code changes.
+    root_logger.setLevel(_get_log_level_from_env())
 
-    # Also log to console if in debug mode for easier development
-    if log_level == logging.DEBUG:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        root_logger.addHandler(console_handler)
-        root_logger.info("Debug mode enabled: Logging to both file and console.")
+    # --- File Handler (Rotating) ---
+    try:
+        # Ensure the log directory exists.
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Create a handler that rotates log files when they reach a certain size.
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file_path,
+            maxBytes=MAX_LOG_SIZE_BYTES,
+            backupCount=BACKUP_COUNT,
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(log_formatter)
+        root_logger.addHandler(file_handler)
+    except (OSError, PermissionError) as e:
+        # If we can't create the log directory/file, we can't log to a file.
+        # Fallback to console-only logging and print an error.
+        print(f"CRITICAL: Unable to create log file at {log_file_path}. Logging to console only. Error: {e}", file=sys.stderr)
+        log_file_path = None # Indicate that file logging is not available.
+
+    # --- Console Handler ---
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(log_formatter)
+    root_logger.addHandler(console_handler)
+
+    return log_file_path

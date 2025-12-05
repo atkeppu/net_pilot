@@ -9,7 +9,6 @@ logic package.
 
 # From logic.system
 from logic.system import (
-    create_github_release,
     flush_dns_cache,
     is_admin,
     release_renew_ip,
@@ -47,10 +46,16 @@ from logic.wifi_profile_manager import (
     delete_wifi_profile
 )
 
+# From github_integration
+from github_integration import (
+    create_github_release,
+    get_repo_from_git_config,
+    check_github_cli_auth
+)
+
 # Explicitly define the public API of this facade module.
 __all__ = [
     # system
-    'create_github_release',
     'flush_dns_cache',
     'is_admin',
     'release_renew_ip',
@@ -74,4 +79,8 @@ __all__ = [
     'connect_to_wifi_network',
     'connect_with_profile_name',
     'delete_wifi_profile',
+    # github_integration
+    'create_github_release',
+    'get_repo_from_git_config',
+    'check_github_cli_auth'
 ]

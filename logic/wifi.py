@@ -35,7 +35,7 @@ def _parse_netsh_wlan_output(output: str) -> list[dict]:
     # This regex captures all relevant details for each SSID block in one go.
     # It looks for SSID, Authentication, Encryption, and the first Signal strength found.
     pattern = re.compile(
-        r"SSID \d+ : (.+?)\n"  # Capture SSID
+        r"SSID \d+ : (.*?)\n"  # Capture SSID (non-greedy, can be empty)
         r".*?Authentication\s+: (.+?)\n"  # Capture Authentication
         r".*?Encryption\s+: (.+?)\n"  # Capture Encryption
         r"(?:.*?Signal\s+: (\d+)%)?",  # Optionally capture Signal
@@ -45,12 +45,15 @@ def _parse_netsh_wlan_output(output: str) -> list[dict]:
     for match in pattern.finditer(output):
         ssid, auth, enc, signal = (m.strip() if m else None for m in match.groups())
 
-        if ssid is None or ssid in seen_ssids:
+        # If SSID is empty or None, treat it as a hidden network.
+        display_ssid = ssid if ssid else "(Hidden Network)"
+
+        if display_ssid in seen_ssids:
             continue  # Skip if SSID is missing or already processed
 
-        seen_ssids.add(ssid)
+        seen_ssids.add(display_ssid)
         networks.append({
-            'ssid': ssid,
+            'ssid': display_ssid,
             'authentication': auth or "N/A",
             'encryption': enc or "N/A",
             'signal': signal or "N/A"
@@ -86,7 +89,16 @@ def get_current_wifi_details() -> dict | None:
 
 def disconnect_wifi():
     """Disconnects from the current Wi-Fi network."""
-    run_system_command(['netsh', 'wlan', 'disconnect'], "Failed to disconnect from Wi-Fi.")
+    try:
+        run_system_command(['netsh', 'wlan', 'disconnect'], "Failed to disconnect from Wi-Fi.")
+    except NetworkManagerError as e:
+        # It's not a critical error if the command fails because we're already disconnected.
+        # We can log this for debugging but don't need to raise an exception.
+        error_str = str(e).lower()
+        if "not connected" in error_str or "ei ole yhteydessä" in error_str:
+            logger.info("Attempted to disconnect, but no active Wi-Fi connection was found.")
+        else:
+            raise # Re-raise any other unexpected errors.
 
 def get_saved_wifi_profiles() -> list[dict]:
     """Gets saved Wi-Fi profiles and their passwords."""

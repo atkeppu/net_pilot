@@ -1,9 +1,4 @@
 import unittest
-import sys
-import os
-
-# Add project root to path to allow importing from 'exceptions'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from exceptions import NetworkManagerError
 

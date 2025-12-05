@@ -1,21 +1,38 @@
 import ctypes
 import logging
+import sys
 import os
 
 from exceptions import NetworkManagerError
-from github_integration import check_github_cli_auth, publish_to_github
-from gui.constants import GITHUB_REPO, APP_NAME
 from .command_utils import run_system_command
 
 logger = logging.getLogger(__name__)
 
 def is_admin() -> bool:
     """Check if the script is running with administrative privileges on Windows."""
+    if sys.platform != "win32":
+        return False
+
     try:
         # Returns non-zero if admin, 0 if not.
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except AttributeError:
         return False
+
+def relaunch_as_admin():
+    """
+    Relaunches the current script with administrative privileges using the 'runas' verb.
+    The current script will exit after calling this.
+    """
+    logger.info("Attempting to relaunch with admin rights...")
+    ctypes.windll.shell32.ShellExecuteW(
+        None,           # Handle to the parent window
+        "runas",        # Verb: run as administrator
+        sys.executable, # The Python interpreter
+        " ".join(sys.argv), # The script and its arguments
+        None,           # Working directory
+        1               # Show the window (SW_SHOWNORMAL)
+    )
 
 def reset_network_stack():
     """
@@ -91,17 +108,3 @@ def terminate_process_by_pid(pid: int):
     except NetworkManagerError:
         # Re-raise to keep the original detailed message from the helper.
         raise
-
-def create_github_release(app_version: str, notes: str) -> str:
-    """
-    Prepares and executes the creation of a new GitHub release.
-    """
-    is_ok, message = check_github_cli_auth()
-    if not is_ok:
-        raise NetworkManagerError(message)
-
-    asset_name = f"{APP_NAME}.exe"
-    asset_path = os.path.join("dist", asset_name) # Assuming build script creates NetPilot.exe
-
-    asset_to_upload = asset_path if os.path.exists(asset_path) else None
-    return publish_to_github(f"v{app_version}", GITHUB_REPO, f"Version {app_version}", notes, asset_path=asset_to_upload)

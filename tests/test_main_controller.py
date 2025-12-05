@@ -1,11 +1,8 @@
 import unittest
-import sys
-import os
 from unittest.mock import Mock, patch, call
+import logging
 
-# Add project root to path to allow importing from 'gui'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+from localization import get_string
 from gui.main_controller import MainController
 from exceptions import NetworkManagerError
 
@@ -34,10 +31,9 @@ class TestMainController(unittest.TestCase):
         
         # Check that the correct messages were put into the queue
         expected_calls = [
-            call.put({'type': 'status_update', 'text': "Refreshing adapter list..."}),
+            call.put({'type': 'status_update', 'text': get_string('status_refreshing_list')}),
             call.put({'type': 'clear_details'}),
-            call.put({'type': 'populate_adapters', 'data': mock_adapters}),
-            call.put({'type': 'status_update', 'text': "Ready. Select an adapter."})
+            call.put({'type': 'populate_adapters', 'data': mock_adapters})
         ]
         self.mock_task_queue.assert_has_calls(expected_calls, any_order=False)
 
@@ -48,15 +44,15 @@ class TestMainController(unittest.TestCase):
         error = NetworkManagerError("Test error")
         mock_get_details.side_effect = error
 
-        # Act
-        self.controller.refresh_adapter_list()
+        # Act & Assert: Check that an error is logged.
+        with self.assertLogs('gui.main_controller', level='ERROR'):
+            self.controller.refresh_adapter_list()
 
         # Assert
         expected_calls = [
-            call.put({'type': 'status_update', 'text': "Refreshing adapter list..."}),
+            call.put({'type': 'status_update', 'text': get_string('status_refreshing_list')}),
             call.put({'type': 'clear_details'}),
-            call.put({'type': 'generic_error', 'description': 'retrieving network adapters', 'error': error}),
-            call.put({'type': 'status_update', 'text': "Error fetching adapters."})
+            call.put({'type': 'generic_error', 'description': 'retrieving network adapters', 'error': error})
         ]
         self.mock_task_queue.assert_has_calls(expected_calls, any_order=False)
 
@@ -81,8 +77,9 @@ class TestMainController(unittest.TestCase):
         # Arrange
         self.controller.adapters_data = [{'Name': 'Wi-Fi'}]
         
-        # Act
-        self.controller.on_adapter_select(99) # Invalid index
+        # Act & Assert: Check that a warning is logged for the invalid index.
+        with self.assertLogs('gui.main_controller', level='WARNING'):
+            self.controller.on_adapter_select(99) # Invalid index
 
         # Assert
         self.assertIsNone(self.controller.selected_adapter_index)
@@ -100,6 +97,19 @@ class TestMainController(unittest.TestCase):
         # Test when nothing is selected
         self.controller.selected_adapter_index = None
         self.assertIsNone(self.controller.get_selected_adapter_name())
+
+    def test_get_speed_for_selected_adapter(self):
+        """Test getting speed data for the selected adapter."""
+        self.controller.adapters_data = [{'Name': 'Wi-Fi'}]
+        self.controller.selected_adapter_index = 0
+        speeds = {'Wi-Fi': {'download': 123}, 'Ethernet': {'download': 456}}
+
+        # Should return data for 'Wi-Fi'
+        self.assertEqual(self.controller.get_speed_for_selected_adapter(speeds), {'download': 123})
+
+        # Should return None if nothing is selected
+        self.controller.selected_adapter_index = None
+        self.assertIsNone(self.controller.get_speed_for_selected_adapter(speeds))
 
 if __name__ == '__main__':
     unittest.main()

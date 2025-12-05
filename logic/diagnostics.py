@@ -79,7 +79,7 @@ def get_active_connections() -> list[dict]:
     try:
         result_json = run_external_ps_script('Get-ActiveConnections.ps1')
         raw_data = json.loads(result_json)
-        return raw_data if isinstance(raw_data, list) else [raw_data]
+        return raw_data if isinstance(raw_data, list) else ([raw_data] if raw_data else [])
     except (NetworkManagerError, json.JSONDecodeError) as e:
         logger.error("get_active_connections failed", exc_info=True)
         raise NetworkManagerError(f"Failed to get active connections via PowerShell: {e}") from e

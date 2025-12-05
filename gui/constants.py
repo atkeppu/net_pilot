@@ -12,4 +12,3 @@ def _read_version():
 APP_NAME = "NetPilot"
 APP_VERSION = _read_version()
 APP_AUTHOR = "Sami Turpeinen"
-GITHUB_REPO = "Samituru/EnableDisable"

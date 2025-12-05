@@ -3,6 +3,7 @@ from tkinter import messagebox
 import logging
 import os
 
+from localization import get_string
 from .wifi_queue_handler import WifiQueueHandler
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ class QueueHandler:
         self.controller = context.main_controller
         self.ui_frames = ui_frames
         self.wifi_handler = WifiQueueHandler(context)
+        self.open_windows = context.open_windows # Shortcut
         self.handler_map = self._create_handler_map()
 
     def _create_handler_map(self):
@@ -40,7 +42,7 @@ class QueueHandler:
             'unhandled_error': lambda msg: self._handle_generic_error("in a background task", msg['error']),
             'generic_error': lambda msg: self._handle_generic_error(msg['description'], msg['error']),
             # New handlers for decoupled MainController
-            'populate_adapters': lambda msg: self.ui_frames['adapter_list'].populate(msg['data']),
+            'populate_adapters': self._handle_populate_adapters,
             'clear_details': lambda msg: self.ui_frames['adapter_details'].clear(),
             'update_adapter_details': self._handle_update_adapter_details,
         }
@@ -59,9 +61,7 @@ class QueueHandler:
             logger.warning("No handler found for queue message type: %s", message['type'])
 
     def _handle_toggle_success(self, message):
-        action = message.get('action', 'changed')
-        adapter = message.get('adapter_name', 'adapter')
-        self.status_var.set(f"Successfully {action}d '{adapter}'. Refreshing list...")
+        self.status_var.set(get_string('status_refreshing_list'))
         self.context.root.after(500, self.controller.refresh_adapter_list)
 
     def _handle_toggle_error(self, message):
@@ -70,17 +70,18 @@ class QueueHandler:
         self.controller.refresh_adapter_list() # Refresh to show the actual current state
 
         if hasattr(error, 'code') and error.code == 'WIFI_CONNECTED_DISABLE_FAILED':
-            if messagebox.askyesno("Action Required", f"Could not disable '{adapter}' because it is connected to a network.\n\nDo you want to automatically disconnect from Wi-Fi and then disable the adapter?", icon='question'):
-                self.status_var.set("Attempting automated two-step action...")
+            prompt = get_string('toggle_wifi_connected_prompt', adapter=adapter)
+            if messagebox.askyesno(get_string('toggle_wifi_connected_title'), prompt, icon='question'):
+                self.status_var.set(get_string('status_disconnect_and_disable'))
                 self.context.action_handler.execute_disconnect_and_disable(adapter)
             else:
-                self.status_var.set("Operation cancelled by user.")
+                self.status_var.set(get_string('status_op_cancelled_by_user'))
         elif "is already" in str(error):
-            messagebox.showinfo("Information", str(error))
-            self.status_var.set("Operation not needed.")
+            messagebox.showinfo(get_string('toggle_info_title'), str(error))
+            self.status_var.set(get_string('status_not_needed'))
         else:
-            messagebox.showerror("Execution Error", f"Operation failed:\n\n{error}")
-            self.status_var.set(f"Failed to change status for '{adapter}'.")
+            messagebox.showerror(get_string('toggle_error_title'), get_string('toggle_error_message', error=error))
+            self.status_var.set(get_string('status_failed_op', adapter_name=adapter))
 
     def _handle_diagnostics_update(self, message):
         self.ui_frames['diagnostics'].update_diagnostics(message['data'])
@@ -96,34 +97,36 @@ class QueueHandler:
         else:
             self.ui_frames['adapter_details'].update_speeds(0, 0)
 
+    def _handle_populate_adapters(self, message):
+        """Populates the adapter list and updates the status bar."""
+        self.ui_frames['adapter_list'].populate(message['data'])
+        self.status_var.set(get_string('status_ready_select_adapter'))
+
     def _handle_update_adapter_details(self, message):
         self.ui_frames['adapter_details'].update_details(message['data'])
         self.ui_frames['adapter_details'].update_button_states(message['data'].get('admin_state'))
 
     def _handle_reset_stack_success(self, message):
-        messagebox.showinfo("Success", "Network stack has been reset.\nPlease reboot your computer for the changes to take effect.")
-        self.status_var.set("Network stack reset. Reboot required.")
+        messagebox.showinfo(get_string('reset_stack_success_title'), get_string('reset_stack_success_message'))
+        self.status_var.set(get_string('status_reset_success'))
 
     def _handle_flush_dns_success(self, message):
-        messagebox.showinfo("Success", "Successfully flushed the DNS resolver cache.")
-        self.status_var.set("DNS cache flushed.")
+        messagebox.showinfo(get_string('flush_dns_success_title'), get_string('flush_dns_success_message'))
+        self.status_var.set(get_string('status_dns_flush_success'))
 
     def _handle_release_renew_success(self, message):
-        messagebox.showinfo("Success", "Successfully released and renewed IP addresses. Refreshing adapter list.")
-        self.status_var.set("IP addresses renewed.")
+        messagebox.showinfo(get_string('release_renew_success_title'), get_string('release_renew_success_message'))
+        self.status_var.set(get_string('status_ip_renew_success'))
         self.controller.refresh_adapter_list()
 
     def _handle_disconnect_wifi_success(self, message):
         # This can be triggered from main window or wifi window, so check for parent
         parent = self.context.open_windows.get('WifiConnectWindow') or self.context.root
-        messagebox.showinfo("Success", "Successfully disconnected from the Wi-Fi network.", parent=parent)
-        self.status_var.set("Wi-Fi disconnected.")
+        messagebox.showinfo(get_string('disconnect_wifi_success_title'), get_string('disconnect_wifi_success_message'), parent=parent)
+        self.status_var.set(get_string('status_wifi_disconnected'))
         
         # Also refresh the wifi window if it's open
-        wifi_window = self.context.open_windows.get('WifiConnectWindow')
-        if wifi_window:
-            wifi_window.status_label.config(text="Disconnected.")
-            wifi_window.available_tab.refresh_list()
+        self._refresh_wifi_window_if_open()
 
     def _handle_disconnect_wifi_error(self, message):
         self._handle_generic_error("disconnecting from Wi-Fi", message['error'])
@@ -144,3 +147,24 @@ class QueueHandler:
         """Executes a function on the UI thread."""
         if callable(message.get('func')):
             message['func']()
+
+    def handle_netstat_update(self, data):
+        """Updates the Netstat window with new connection data."""
+        netstat_window = self.open_windows.get('NetstatWindow')
+        if netstat_window:
+            netstat_window.populate_tree(data)
+
+    def handle_traceroute_update(self, line: str):
+        """Appends a line to the Traceroute window's output."""
+        traceroute_window = self.open_windows.get('TracerouteWindow')
+        if traceroute_window:
+            traceroute_window.append_line(line)
+
+
+
+    def _refresh_wifi_window_if_open(self):
+        """Helper to refresh the Wi-Fi window's state if it is currently open."""
+        wifi_window = self.context.open_windows.get('WifiConnectWindow')
+        if wifi_window:
+            wifi_window.status_label.config(text="Disconnected.")
+            wifi_window.available_tab.refresh_list()

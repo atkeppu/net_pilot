@@ -2,21 +2,27 @@ import subprocess
 import logging
 import base64
 import os
+import codecs
 
 from exceptions import NetworkManagerError
 
 logger = logging.getLogger(__name__)
 
+def _decode_with_encoding(byte_string: bytes, encoding: str, errors: str = 'strict') -> str:
+    """Wrapper for bytes.decode to make it patchable for tests."""
+    return byte_string.decode(encoding, errors=errors)
+
 def _safe_decode(byte_string: bytes | None) -> str:
     """Safely decodes a byte string using common encodings."""
     if not byte_string:
         return ""
-    for encoding in ('utf-8', 'oem', 'latin-1'):
+    try:
+        return _decode_with_encoding(byte_string, 'utf-8').strip()
+    except UnicodeDecodeError:
         try:
-            return byte_string.decode(encoding).strip()
+            return _decode_with_encoding(byte_string, 'oem').strip()
         except UnicodeDecodeError:
-            continue
-    return byte_string.decode('ascii', errors='ignore').strip()
+            return _decode_with_encoding(byte_string, 'ascii', errors='replace').strip().replace('\ufffd', '?')
 
 def run_system_command(command: list[str], error_message_prefix: str, check: bool = True):
     """

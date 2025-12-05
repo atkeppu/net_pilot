@@ -1,11 +1,6 @@
 import unittest
-import sys
-import os
 from unittest.mock import patch
 import json
-
-# Add project root to path to allow importing from 'logic'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from logic.adapters import get_adapter_details, set_network_adapter_status_windows, disconnect_wifi_and_disable_adapter
 from exceptions import NetworkManagerError
@@ -59,7 +54,7 @@ class TestSetAdapterStatus(unittest.TestCase):
         with self.assertRaises(NetworkManagerError) as cm:
             set_network_adapter_status_windows("Wi-Fi", "enable")
         
-        self.assertIn("is already enabled", str(cm.exception))
+        self.assertIn("Adapter 'Wi-Fi' is already enabled", str(cm.exception))
 
     @patch('logic.adapters.run_ps_command')
     def test_setNetworkAdapterStatus_whenDisablingConnectedWifi_shouldRaiseSpecificError(self, mock_run_ps_command):
@@ -149,24 +144,6 @@ class TestDisconnectAndDisable(unittest.TestCase):
         # Assert
         self.assertEqual(mock_disconnect.call_count, 1)
         self.assertLessEqual(mock_get_details.call_count, 2) # Should be 2 calls
-        mock_set_status.assert_called_once_with(adapter_name, 'disable')
-        self.assertIn("Successfully disabled 'Wi-Fi'.", messages)
-
-    @patch('logic.adapters.set_network_adapter_status_windows')
-    @patch('logic.adapters.get_current_wifi_details')
-    @patch('logic.adapters.disconnect_wifi')
-    @patch('time.sleep')
-    def test_disconnectAndDisable_whenAlreadyDisconnected_shouldStillSucceed(self, mock_sleep, mock_disconnect, mock_get_details, mock_set_status):
-        """Test case where disconnect_wifi fails but adapter is already disconnected."""
-        # Arrange: disconnect_wifi raises an error, but get_details immediately returns None.
-        mock_disconnect.side_effect = NetworkManagerError("Already disconnected")
-        mock_get_details.return_value = None
-        adapter_name = "Wi-Fi"
-
-        # Act
-        messages = list(disconnect_wifi_and_disable_adapter(adapter_name))
-
-        # Assert
         mock_set_status.assert_called_once_with(adapter_name, 'disable')
         self.assertIn("Successfully disabled 'Wi-Fi'.", messages)
 

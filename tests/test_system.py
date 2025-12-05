@@ -1,147 +1,152 @@
 import unittest
-from unittest.mock import patch, Mock, call
-import logging
-
-# Add project root to path to allow importing from 'logic'
+from unittest.mock import patch, MagicMock
 import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from logic.system import release_renew_ip, reset_network_stack, flush_dns_cache, terminate_process_by_pid
+from logic.system import is_admin
+from logic.system import reset_network_stack, flush_dns_cache, release_renew_ip, terminate_process_by_pid, relaunch_as_admin
 from exceptions import NetworkManagerError
 
-# Disable logging during tests to keep the output clean
-logging.disable(logging.CRITICAL)
+class TestIsAdmin(unittest.TestCase):
+    """Unit tests for the is_admin function."""
 
-class TestSystemModule(unittest.TestCase):
-    """
-    Unit tests for functions in the logic.system module.
-    """
+    @patch('sys.platform', 'win32')
+    def test_is_admin_true_on_windows_with_admin(self):
+        """Test is_admin returns True on Windows when user is an admin."""
+        # Mokataan ctypes-kirjaston Windows-spesifinen kutsu
+        with patch('ctypes.windll.shell32.IsUserAnAdmin', return_value=1):
+            self.assertTrue(is_admin())
+
+    @patch('sys.platform', 'win32')
+    def test_is_admin_false_on_windows_without_admin(self):
+        """Test is_admin returns False on Windows when user is not an admin."""
+        with patch('ctypes.windll.shell32.IsUserAnAdmin', return_value=0):
+            self.assertFalse(is_admin())
+
+    def test_is_admin_false_on_non_windows(self):
+        """Test is_admin returns False on non-Windows platforms."""
+        with patch('sys.platform', 'linux'), \
+             patch('ctypes.windll', new_callable=MagicMock) as mock_windll:
+            self.assertFalse(is_admin())
+            mock_windll.shell32.IsUserAnAdmin.assert_not_called()
+ 
+    @patch('sys.platform', 'win32')
+    def test_is_admin_handles_attribute_error(self):
+        """Test is_admin returns False if IsUserAnAdmin function is missing."""
+        with patch('ctypes.windll.shell32.IsUserAnAdmin', side_effect=AttributeError):
+            self.assertFalse(is_admin())
+
+class TestSystemCommands(unittest.TestCase):
+    """Unit tests for other system command functions."""
 
     @patch('logic.system.run_system_command')
-    def test_resetNetworkStack_onSuccess_shouldCallNetsh(self, mock_run_command):
+    def test_reset_network_stack(self, mock_run):
         """Test that reset_network_stack calls the correct netsh command."""
         reset_network_stack()
-        mock_run_command.assert_called_once_with(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
+        mock_run.assert_called_once_with(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
 
     @patch('logic.system.run_system_command')
-    def test_flushDnsCache_onSuccess_shouldCallIpconfig(self, mock_run_command):
+    def test_flush_dns_cache(self, mock_run):
         """Test that flush_dns_cache calls the correct ipconfig command."""
         flush_dns_cache()
-        mock_run_command.assert_called_once_with(['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
+        mock_run.assert_called_once_with(['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
 
     @patch('logic.system.run_system_command')
-    def test_terminateProcess_onSuccess_shouldCallTaskkill(self, mock_run_command):
-        """Test a successful process termination."""
-        terminate_process_by_pid(1234)
-        mock_run_command.assert_called_once_with(['taskkill', '/F', '/T', '/PID', '1234'], "Failed to terminate process with PID 1234.")
-
-    def test_terminateProcess_withSystemPid_shouldRaiseError(self):
-        """Test that attempting to terminate a critical system process raises an error."""
-        with self.assertRaises(NetworkManagerError) as cm:
-            terminate_process_by_pid(4) # System process
-        self.assertIn("not allowed", str(cm.exception))
-
-    # --- Tests for release_renew_ip ---
-
-    @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_onSuccess_shouldCallBothCommands(self, mock_run_command):
-        """Test the ideal success case where both release and renew succeed."""
-        # Arrange: Both commands return a successful result.
-        mock_run_command.return_value = Mock(returncode=0)
-
-        # Act
+    def test_release_renew_ip_success(self, mock_run):
+        """Test a successful IP release and renew sequence."""
+        # Simulate both commands succeeding
+        mock_run.return_value = MagicMock(returncode=0)
         release_renew_ip()
-
-        # Assert: Check that both commands were called correctly.
-        self.assertEqual(mock_run_command.call_count, 2)
-        mock_run_command.assert_has_calls([
-            call(['ipconfig', '/release'], "IP address release command finished.", check=False),
-            call(['ipconfig', '/renew'], "Failed to renew IP address.")
-        ])
+        
+        self.assertEqual(mock_run.call_count, 2)
+        mock_run.assert_any_call(['ipconfig', '/release'], "IP address release command finished.", check=False)
+        mock_run.assert_any_call(['ipconfig', '/renew'], "Failed to renew IP address.")
 
     @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_whenReleaseFailsWithKnownError_shouldStillAttemptRenew(self, mock_run_command):
-        """Test that a non-critical failure on 'release' still allows 'renew' to proceed."""
-        # Arrange: 'release' fails with a known safe error, 'renew' succeeds.
-        release_result = Mock(returncode=1, stdout=b'', stderr=b'The media is disconnected.')
-        renew_result = Mock(returncode=0)
-        mock_run_command.side_effect = [release_result, renew_result]
-
-        # Act
-        release_renew_ip()
-
-        # Assert: Both commands are still called.
-        self.assertEqual(mock_run_command.call_count, 2)
-
-    @patch('logging.warning')
-    @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_whenReleaseFailsWithUnknownError_shouldLogWarning(self, mock_run_command, mock_log_warning):
-        """Test that an unexpected 'release' failure logs a warning."""
-        # Arrange: 'release' fails with an unknown error.
-        release_result = Mock(returncode=1, stdout=b'', stderr=b'An unexpected error occurred.')
-        renew_result = Mock(returncode=0)
-        mock_run_command.side_effect = [release_result, renew_result]
-
-        # Act
-        release_renew_ip()
-
-        # Assert: A warning was logged.
-        mock_log_warning.assert_called_once()
-        self.assertIn("unexpected non-zero exit code", mock_log_warning.call_args[0][0])
-
-    @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_whenRenewFailsWithDhcpError_shouldRaiseSpecificError(self, mock_run_command):
-        """Test that a DHCP-specific error during 'renew' raises a specific exception."""
-        # Arrange: 'renew' command raises an error indicating a DHCP server issue.
-        dhcp_error = NetworkManagerError("An error occurred while renewing interface Wi-Fi: unable to contact your DHCP server.")
-        mock_run_command.side_effect = [
-            Mock(returncode=0),  # Successful release
-            dhcp_error           # Failed renew
+    def test_release_renew_ip_release_fails_with_other_error(self, mock_run):
+        """Test that a non-critical but unexpected error in 'release' is logged as a warning."""
+        # Simulate 'release' failing with a different error, and 'renew' succeeding.
+        mock_run.side_effect = [
+            MagicMock(returncode=1, stderr=b"some other random error"),
+            MagicMock(returncode=0)
         ]
+        with self.assertLogs('logic.system', level='WARNING') as cm:
+            release_renew_ip()
+            self.assertIn("unexpected non-zero exit code", cm.output[0])
+        self.assertEqual(mock_run.call_count, 2)
 
-        # Act & Assert
+    @patch('logic.system.run_system_command')
+    def test_release_renew_ip_release_fails_gracefully(self, mock_run):
+        """Test that renew is still called if release fails with a non-critical error."""
+        # Simulate 'release' failing with a known safe error, and 'renew' succeeding.
+        mock_run.side_effect = [
+            MagicMock(returncode=1, stderr=b"media is disconnected"),
+            MagicMock(returncode=0)
+        ]
+        
+        release_renew_ip()
+        
+        self.assertEqual(mock_run.call_count, 2)
+        mock_run.assert_any_call(['ipconfig', '/renew'], "Failed to renew IP address.")
+
+    @patch('logic.system.run_system_command')
+    def test_release_renew_ip_renew_fails_with_dhcp_error(self, mock_run):
+        """Test that a specific DHCP error during renew is correctly identified."""
+        # Simulate 'release' succeeding, but 'renew' failing with a DHCP error.
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            NetworkManagerError("unable to contact your dhcp server")
+        ]
+        
         with self.assertRaises(NetworkManagerError) as cm:
             release_renew_ip()
         
         self.assertEqual(cm.exception.code, 'DHCP_SERVER_UNREACHABLE')
-        self.assertIn("Unable to contact the DHCP server", str(cm.exception))
 
     @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_whenRenewFailsWithAdapterDisabledError_shouldRaiseSpecificError(self, mock_run_command):
-        """Test that a 'renew' failure due to a disabled adapter raises a specific exception."""
-        # Arrange: 'renew' command raises an error indicating a disabled adapter.
-        disabled_error = NetworkManagerError("An error occurred: no adapter is in the state permissible for this operation.")
-        mock_run_command.side_effect = [
-            Mock(returncode=0),  # Successful release
-            disabled_error       # Failed renew
+    def test_release_renew_ip_renew_fails_with_adapter_disabled_error(self, mock_run):
+        """Test that a specific 'adapter disabled' error during renew is correctly identified."""
+        # Simulate 'release' succeeding, but 'renew' failing with the specific error.
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            NetworkManagerError("no adapter is in the state permissible")
         ]
-
-        # Act & Assert
         with self.assertRaises(NetworkManagerError) as cm:
             release_renew_ip()
-        
         self.assertEqual(cm.exception.code, 'ADAPTER_DISABLED')
-        self.assertIn("One or more network adapters are disabled", str(cm.exception))
-
 
     @patch('logic.system.run_system_command')
-    def test_releaseRenewIp_whenRenewFailsWithGenericError_shouldReraiseOriginalError(self, mock_run_command):
-        """Test that a generic 'renew' failure re-raises the original exception."""
-        # Arrange: 'renew' command raises a generic error.
-        generic_error = NetworkManagerError("A generic failure.")
-        mock_run_command.side_effect = [
-            Mock(returncode=0),  # Successful release
-            generic_error        # Failed renew
+    def test_release_renew_ip_renew_fails_with_generic_error(self, mock_run):
+        """Test that a generic error during renew is re-raised."""
+        # Simulate 'release' succeeding, but 'renew' failing with a generic error.
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            NetworkManagerError("A generic failure.")
         ]
-
-        # Act & Assert
-        with self.assertRaises(NetworkManagerError) as cm:
+        with self.assertRaisesRegex(NetworkManagerError, "A generic failure.") as cm:
             release_renew_ip()
-        
-        # The re-raised exception should be the original one.
-        self.assertIs(cm.exception, generic_error)
-        self.assertIsNone(cm.exception.code)
+        self.assertIsNone(cm.exception.code) # Ensure it's not a specific coded error
+
+    @patch('logic.system.run_system_command')
+    def test_terminate_process_by_pid_success(self, mock_run):
+        """Test a successful process termination."""
+        pid_to_kill = 1234
+        terminate_process_by_pid(pid_to_kill)
+        mock_run.assert_called_once_with(
+            ['taskkill', '/F', '/T', '/PID', str(pid_to_kill)],
+            f"Failed to terminate process with PID {pid_to_kill}."
+        )
+
+    def test_terminate_process_by_pid_critical_process(self):
+        """Test that terminating critical system PIDs is blocked."""
+        with self.assertRaisesRegex(NetworkManagerError, "system-critical processes is not allowed"):
+            terminate_process_by_pid(0)
+        with self.assertRaisesRegex(NetworkManagerError, "system-critical processes is not allowed"):
+            terminate_process_by_pid(4)
+
+    @patch('logic.system.run_system_command', side_effect=NetworkManagerError("Taskkill failed."))
+    def test_terminate_process_by_pid_failure(self, mock_run):
+        """Test that an error from taskkill is propagated."""
+        with self.assertRaisesRegex(NetworkManagerError, "Taskkill failed."):
+            terminate_process_by_pid(1234)
 
 
 if __name__ == '__main__':

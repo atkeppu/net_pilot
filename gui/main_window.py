@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import logging
+from localization import get_string
 from functools import partial
 from queue import Empty
 
@@ -26,8 +27,9 @@ class NetworkManagerApp(tk.Tk):
     def __init__(self, context: AppContext):
         super().__init__()
         self.context = context
+        self._is_closing = False  # Flag to indicate if the app is closing
 
-        self.title("NetPilot")
+        self.title(get_string('app_title'))
         self.geometry("550x850")
         try:
             self.iconbitmap('icon.ico')
@@ -36,7 +38,7 @@ class NetworkManagerApp(tk.Tk):
 
         # --- Initialize Core UI and Context Components ---
         # The status_var is a core UI element, so it's created here.
-        self.status_var = tk.StringVar(value="Initializing...")
+        self.status_var = tk.StringVar(value=get_string('status_initializing'))
         ui_frames = {}
 
         # --- Setup UI Components ---
@@ -45,11 +47,12 @@ class NetworkManagerApp(tk.Tk):
         # --- Initialize Handlers and Controllers ---
         # Pass the root window, frames, and the status_var to the context.
         self.context.initialize_components(self, ui_frames, self.status_var)
-        MenuHandler(self, self.context.action_handler).create_menu()
+        MenuHandler(self.context).create_menu()
 
         # --- Finalize UI and Start Application ---
         self._create_status_bar()
         self.after(200, self._initial_load)
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     def _setup_ui_frames(self, ui_frames: dict):
         """Sets up the main UI layout and widgets."""
@@ -78,20 +81,35 @@ class NetworkManagerApp(tk.Tk):
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
     def _initial_load(self):
-        """Performs the initial data loading and starts polling."""
-        self.status_var.set("Loading initial data...")
+        """Sets the initial loading message and schedules the background tasks to start."""
+        self.status_var.set(get_string('status_refreshing_list', default="Refreshing adapter list..."))
+        # Schedule the actual background work to start after the UI has had a moment to update.
+        self.after(50, self._start_background_tasks)
+
+    def _start_background_tasks(self):
+        """Starts the polling manager and the UI queue processing."""
         # The PollingManager will now start itself after a short delay.
         self.context.polling_manager.start_all(DIAGNOSTICS_REFRESH_INTERVAL_S, SPEED_POLL_INTERVAL_S)
+        # Start processing the queue for UI updates.
+        logger.info("Starting UI queue processing.")
         self.after(QUEUE_POLL_INTERVAL_MS, self._process_queue)
 
     def _process_queue(self):
         """Process messages from the worker thread queue."""
         try:
-            message = self.context.task_queue.get_nowait()
-            self.context.queue_handler.process_message(message)
-            self.update_idletasks()
+            while not self.context.task_queue.empty():
+                message = self.context.task_queue.get_nowait()
+                self.context.queue_handler.process_message(message)
+                self.update_idletasks()
 
         except Empty:
             pass
         finally:
-            self.after(QUEUE_POLL_INTERVAL_MS, self._process_queue)
+            # Only reschedule if the application is not in the process of closing
+            if not self._is_closing:
+                self.after(QUEUE_POLL_INTERVAL_MS, self._process_queue)
+
+    def _on_closing(self):
+        """Handles the window close event."""
+        self._is_closing = True
+        self.destroy()

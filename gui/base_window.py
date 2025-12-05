@@ -31,27 +31,6 @@ class BaseTaskWindow(tk.Toplevel, ABC):
         self.context.register_window(self)
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
-    def _run_background_task(self, task_func: Callable, *args, on_complete: Callable | None = None, **kwargs):
-        """Runs a given function in a background thread."""
-        def worker():
-            try:
-                task_func(*args, **kwargs)
-            except NetworkManagerError as e:
-                # Handle known application errors by posting a specific error message.
-                self.logger.warning("A known error occurred in background task: %s", e)
-                self.task_queue.put({'type': 'generic_error', 'description': 'performing background task', 'error': e})
-            except Exception as e:
-                # Put any unhandled exception into the queue for the UI thread to handle
-                self.logger.error("Unhandled exception in background task.", exc_info=True)
-                self.task_queue.put({'type': 'unhandled_error', 'error': e})
-            finally:
-                # Optionally, run a completion callback on the UI thread.
-                # This is useful for re-enabling buttons, etc.
-                if on_complete and callable(on_complete):
-                    self.task_queue.put({'type': 'ui_update', 'func': on_complete})
-
-        threading.Thread(target=worker, daemon=True).start()
-
     def destroy(self):
         """Overrides the default destroy to unregister the window first."""
         self.logger.info("Destroying and unregistering window.")

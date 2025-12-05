@@ -143,7 +143,12 @@ työntää olemassa olevat muutokset sinne.
 
         print(f"\n{Colors.BOLD}4/5: Luodaan uutta GitHub-repositorya...{Colors.ENDC}")
         
-        create_command = ["gh", "repo", "create", args.repo_name, visibility, "--source=.", "--push"]
+        # If repo_name contains a '/', assume it's in 'owner/repo' format.
+        # Otherwise, create it under the currently logged-in user.
+        if '/' in args.repo_name:
+            create_command = ["gh", "repo", "create", args.repo_name, visibility, "--source=."]
+        else:
+            create_command = ["gh", "repo", "create", args.repo_name, visibility, "--source=.", "--push"]
         
         if args.description:
             create_command.extend(["-d", args.description])
@@ -154,6 +159,13 @@ työntää olemassa olevat muutokset sinne.
             print(f"{Colors.FAIL}   (Yleinen syy on, että samanniminen repositorio on jo olemassa GitHubissa.){Colors.ENDC}", file=sys.stderr)
             sys.exit(1)
         
+        # If we created the repo under an organization or another user, we need to manually set the remote and push.
+        if '/' in args.repo_name:
+            print("-> Asetetaan etärepository ja työnnetään koodi...")
+            repo_url_for_remote = f"https://github.com/{args.repo_name}.git"
+            run_command(["git", "remote", "add", "origin", repo_url_for_remote])
+            run_command(["git", "push", "-u", "origin", "main"])
+
         # The URL can be in stdout or stderr depending on the gh version.
         # We search both to be safe.
         combined_output = result.stdout + "\n" + result.stderr # type: ignore

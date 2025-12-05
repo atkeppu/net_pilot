@@ -1,6 +1,7 @@
 import logging
 from tkinter import messagebox
 
+from localization import get_string
 from app_logic import get_adapter_details
 from exceptions import NetworkManagerError
 
@@ -20,19 +21,14 @@ class MainController:
         """Clears and re-populates the listbox with network adapters."""
         logger.info("Starting adapter list refresh...")
         try:
-            self.task_queue.put({'type': 'status_update', 'text': "Refreshing adapter list..."})
+            self.task_queue.put({'type': 'status_update', 'text': get_string('status_refreshing_list')})
+            self.task_queue.put({'type': 'clear_details'})
             self.adapters_data = get_adapter_details()
-            # Only clear the UI if we have new data to show
-            if self.adapters_data:
-                self.task_queue.put({'type': 'clear_details'})
             self.task_queue.put({'type': 'populate_adapters', 'data': self.adapters_data})
-            status = "Ready. Select an adapter." if self.adapters_data else "No network adapters found."
-            self.task_queue.put({'type': 'status_update', 'text': status})
             logger.info("Adapter list refresh completed successfully.")
         except NetworkManagerError as e:
             logger.error("Failed to get network adapters.", exc_info=True)
             self.task_queue.put({'type': 'generic_error', 'description': 'retrieving network adapters', 'error': e})
-            self.task_queue.put({'type': 'status_update', 'text': "Error fetching adapters."})
             logger.error("Adapter list refresh failed.")
 
     def on_adapter_select(self, selected_index: int):

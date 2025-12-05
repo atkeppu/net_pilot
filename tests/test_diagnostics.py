@@ -1,13 +1,9 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 import io
 import json
-import sys
-import os
 
-# Add the project root to the Python path to allow importing from 'logic'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import requests
 from logic.diagnostics import run_traceroute, get_network_diagnostics, get_raw_network_stats, get_active_connections
 from exceptions import NetworkManagerError
 
@@ -66,25 +62,20 @@ class TestDiagnosticsJsonParsing(unittest.TestCase):
     """
 
     @patch('logic.diagnostics.run_external_ps_script')
-    def test_get_network_diagnostics_invalid_json(self, mock_run_script):
-        """Test that get_network_diagnostics raises an error on invalid JSON."""
+    def test_get_active_connections_invalid_json(self, mock_run_script):
+        """Test that get_active_connections raises an error on invalid JSON."""
         mock_run_script.return_value = "{not-json"
-        with self.assertRaises(NetworkManagerError):
-            get_network_diagnostics()
+        # Check that an error is logged and the correct exception is raised.
+        with self.assertLogs('logic.diagnostics', level='ERROR'), self.assertRaises(NetworkManagerError):
+            get_active_connections() # type: ignore
 
     @patch('logic.diagnostics.run_external_ps_script')
     def test_get_raw_network_stats_invalid_json(self, mock_run_script):
         """Test that get_raw_network_stats returns an empty dict on invalid JSON."""
         mock_run_script.return_value = "[{not-json}]"
-        result = get_raw_network_stats()
-        self.assertEqual(result, {})
-
-    @patch('logic.diagnostics.run_external_ps_script')
-    def test_get_active_connections_invalid_json(self, mock_run_script):
-        """Test that get_active_connections raises an error on invalid JSON."""
-        mock_run_script.return_value = "invalid"
-        with self.assertRaises(NetworkManagerError):
-            get_active_connections()
+        # Check that an error is logged and the function returns an empty dict.
+        with self.assertLogs('logic.diagnostics', level='ERROR'):
+            self.assertEqual(get_raw_network_stats(), {})
 
     @patch('logic.diagnostics.run_external_ps_script')
     def test_get_active_connections_single_object(self, mock_run_script):
@@ -101,6 +92,60 @@ class TestDiagnosticsJsonParsing(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0], mock_data)
 
+    @patch('logic.diagnostics.run_external_ps_script')
+    def test_get_active_connections_empty_response(self, mock_run_script):
+        """Test that an empty JSON list from the script returns an empty list."""
+        mock_run_script.return_value = "[]"
+        result = get_active_connections()
+        self.assertEqual(result, [])
+
+class TestGetNetworkDiagnostics(unittest.TestCase):
+    """Unit tests for the get_network_diagnostics function."""
+
+    @patch('logic.diagnostics.run_system_command')
+    @patch('logic.diagnostics.requests.get')
+    def test_get_network_diagnostics_all_fail(self, mock_requests_get, mock_run_command):
+        """Test that diagnostics function handles failures in all sub-tasks gracefully."""
+        # Arrange: all external calls fail
+        mock_requests_get.side_effect = requests.RequestException("Connection failed")
+        # Simulate both ipconfig and ping failing
+        mock_run_command.side_effect = NetworkManagerError("Command failed")
+
+        # Act
+        result = get_network_diagnostics()
+
+        # Assert: The function should return the default error values
+        self.assertEqual(mock_run_command.call_count, 3) # ipconfig, ping gateway, ping external
+        self.assertEqual(result['Public IP'], "Error")
+        self.assertEqual(result['Gateway'], "N/A")
+        self.assertEqual(result['DNS Servers'], "N/A")
+        self.assertEqual(result['Gateway Latency'], "No Response")
+        self.assertEqual(result['External Latency'], "No Response")
+
+    @patch('logic.diagnostics.run_system_command')
+    @patch('logic.diagnostics.requests.get')
+    def test_get_network_diagnostics_parsing(self, mock_requests_get, mock_run_command):
+        """Test successful parsing of ipconfig output."""
+        # Arrange
+        mock_requests_get.return_value.text = "1.2.3.4"
+        ipconfig_output = """
+   Default Gateway . . . . . . . . . : 192.168.1.1
+   DNS Servers . . . . . . . . . . . : 8.8.8.8
+                                       8.8.4.4
+""".encode('oem')
+        # Simulate successful ipconfig, then successful pings
+        mock_run_command.side_effect = [
+            MagicMock(stdout=ipconfig_output), # for ipconfig
+            MagicMock(stdout=b"Average = 10ms"), # for gateway ping
+            MagicMock(stdout=b"Average = 25ms")  # for external ping
+        ]
+
+        result = get_network_diagnostics(external_target="example.com")
+
+        self.assertEqual(result['Gateway'], "192.168.1.1")
+        self.assertEqual(result['DNS Servers'], "8.8.8.8, 8.8.4.4")
+        self.assertEqual(result['Gateway Latency'], "10 ms")
+        self.assertEqual(result['External Latency'], "25 ms")
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 
+from localization import get_string
+
 DEFAULT_PING_TARGET = "8.8.8.8"
 
 class DiagnosticsFrame(ttk.LabelFrame):
@@ -10,16 +12,16 @@ class DiagnosticsFrame(ttk.LabelFrame):
     """
 
     def __init__(self, parent, **kwargs):
-        super().__init__(parent, text="Network Diagnostics", **kwargs)
+        super().__init__(parent, text=get_string('diagnostics_title'), **kwargs)
 
         # Data-driven structure for UI elements.
-        # Each tuple contains: (Display Label, Data Key)
+        # Each tuple contains: (Localization Key, API Key from PowerShell)
         self.diag_map = [
-            ("Public IP", "Public IP"),
-            ("Gateway", "Gateway"),
-            ("Gateway Latency", "Gateway Latency"),
-            ("External Latency", "External Latency"),
-            ("DNS Servers", "DNS Servers"),
+            ('diag_public_ip', "Public IP"),
+            ('diag_gateway', "Gateway"),
+            ('diag_gateway_latency', "Gateway Latency"),
+            ('diag_external_latency', "External Latency"),
+            ('diag_dns_servers', "DNS Servers"),
         ]
 
         self.diag_labels = {}
@@ -28,13 +30,14 @@ class DiagnosticsFrame(ttk.LabelFrame):
 
     def _create_widgets(self):
         # Build labels dynamically from the diag_map
-        for i, (label_text, _) in enumerate(self.diag_map):
-            ttk.Label(self, text=f"{label_text}:").grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
-            value_label = ttk.Label(self, text="Fetching...", anchor=tk.W)
+        for i, (label_key, _) in enumerate(self.diag_map):
+            display_text = get_string(label_key)
+            ttk.Label(self, text=f"{display_text}:").grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
+            value_label = ttk.Label(self, text=get_string('status_fetching'), anchor=tk.W)
             value_label.grid(row=i, column=1, sticky=tk.W, padx=5, pady=2)
-            self.diag_labels[label_text] = value_label
+            self.diag_labels[label_key] = value_label
 
-        ttk.Label(self, text="Ping Target:").grid(row=len(self.diag_map), column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Label(self, text=f"{get_string('diag_ping_target')}:").grid(row=len(self.diag_map), column=0, sticky=tk.W, padx=5, pady=2)
         ping_target_entry = ttk.Entry(self, textvariable=self.ping_target_var)
         ping_target_entry.grid(row=len(self.diag_map), column=1, sticky=tk.EW, padx=5, pady=2)
 
@@ -42,9 +45,9 @@ class DiagnosticsFrame(ttk.LabelFrame):
 
     def update_diagnostics(self, data: dict):
         """Updates the diagnostic labels with new data."""
-        for label, key in self.diag_map:
-            value = data.get(key, "N/A")
-            self.diag_labels[label].config(text=value)
+        for label_key, api_key in self.diag_map:
+            value = data.get(api_key, "N/A")
+            self.diag_labels[label_key].config(text=value)
 
     def get_ping_target(self) -> str:
         """Returns the current value of the ping target entry."""

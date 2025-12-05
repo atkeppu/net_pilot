@@ -4,7 +4,7 @@ import time
 import logging
 import json
 
-from app_logic import get_network_diagnostics, get_raw_network_stats, get_current_wifi_details
+from app_logic import get_network_diagnostics, get_current_wifi_details
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class PollingManager:
         if self.is_running: return
         self.is_running = True
         logger.info("Starting polling loops...")
-        threading.Thread(target=self._poll_loop, daemon=True).start()
+        threading.Thread(target=self._poll_loop_wrapper, daemon=True).start()
         threading.Thread(target=self._speed_poll_loop_powershell, daemon=True).start()
 
     def _speed_poll_loop_powershell(self):
@@ -123,42 +123,47 @@ class PollingManager:
                 }
         return calculated_speeds
 
-    def _poll_loop(self):
+    def _poll_loop_wrapper(self):
+        """Wrapper to handle the lifecycle of the poll loop thread."""
+        stop_event = threading.Event()
+        try:
+            self._poll_loop(stop_event)
+        finally:
+            self.is_running = False
+            logger.info("Main poll loop has stopped.")
+
+    def _poll_loop(self, stop_event: threading.Event):
         """
         A single, unified polling loop that handles all heavy data fetching.
         It runs the adapter refresh once, and other tasks periodically.
         """
         logger.info("Starting main poll loop.")
-        initial_adapter_load_done = False
+        
+        # --- Task 1: One-time adapter list refresh ---
+        try:
+            logger.info("Performing initial adapter list refresh...")
+            self.controller.refresh_adapter_list()
+            logger.info("...initial adapter list refresh complete.")
+        except Exception:
+            logger.error("Initial adapter list refresh failed.", exc_info=True)
 
-        while self.is_running:
+        while self.is_running and not stop_event.is_set():
             try:
-                # --- Task 1: One-time adapter list refresh ---
-                if not initial_adapter_load_done:
-                    logger.info("Performing initial adapter list refresh...")
-                    self.controller.refresh_adapter_list()
-                    initial_adapter_load_done = True
-                    logger.info("...initial adapter list refresh complete.")
-
                 # --- Task 2: Periodic heavy diagnostics ---
                 logger.info("Starting heavy poll task cycle...")
 
-                # Run each slow task in its own sub-thread so they don't block each other.
                 def fetch_diagnostics():
                     logger.debug("Fetching network diagnostics...")
                     diag_data = get_network_diagnostics(external_target=self.context.get_ping_target())
                     self.task_queue.put({'type': 'diagnostics_update', 'data': diag_data})
                     logger.debug("...diagnostics fetched.")
 
-                def fetch_wifi_details():
-                    logger.debug("Fetching Wi-Fi details...")
-                    wifi_data = get_current_wifi_details()
-                    self.task_queue.put({'type': 'wifi_status_update', 'data': wifi_data})
-                    logger.debug("...Wi-Fi details fetched.")
-
                 threading.Thread(target=fetch_diagnostics, daemon=True).start()
-                threading.Thread(target=fetch_wifi_details, daemon=True).start()
+                
+                # Also fetch light tasks here to keep them in sync
+                wifi_data = get_current_wifi_details()
+                self.task_queue.put({'type': 'wifi_status_update', 'data': wifi_data})
             except Exception:
                 logger.error("Main polling loop encountered an error.", exc_info=True)
             finally:
-                time.sleep(self.diagnostics_interval)
+                stop_event.wait(self.diagnostics_interval)

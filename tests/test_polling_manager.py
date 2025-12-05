@@ -1,11 +1,8 @@
 import unittest
-import sys
-import os
 from unittest.mock import Mock, patch, call
+import threading
 
-# Add the project root to the Python path to allow importing from 'gui'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import time
 from gui.polling_manager import PollingManager
 
 class TestPollingManagerSpeedCalc(unittest.TestCase):
@@ -15,8 +12,10 @@ class TestPollingManagerSpeedCalc(unittest.TestCase):
 
     def setUp(self):
         """Set up a PollingManager instance for testing."""
-        # The context dependency is not needed for testing this specific method.
-        self.polling_manager = PollingManager(context=None)
+        mock_context = Mock()
+        mock_context.main_controller = Mock()
+        mock_context.task_queue = Mock()
+        self.polling_manager = PollingManager(context=mock_context)
 
     def test_normal_speed_calculation(self):
         """Test a standard, successful speed calculation over 2 seconds."""
@@ -87,6 +86,24 @@ class TestPollingManagerSpeedCalc(unittest.TestCase):
         result = self.polling_manager._calculate_speed_delta(current_stats, last_stats, 1.0)
         self.assertNotIn('Adapter 1', result)
 
+class TestCalculateCurrentSpeeds(unittest.TestCase):
+    """Tests for the _calculate_current_speeds method."""
+
+    def setUp(self):
+        mock_context = Mock()
+        self.polling_manager = PollingManager(context=mock_context)
+        self.polling_manager.last_stats = {}
+        self.polling_manager.last_time = time.time()
+
+    def test_invalid_json_returns_empty_dict(self):
+        """Test that malformed JSON input is handled gracefully."""
+        with self.assertLogs('gui.polling_manager', level='WARNING'):
+            result = self.polling_manager._calculate_current_speeds("{not-json")
+            self.assertEqual(result, {})
+
+    def test_non_list_or_dict_json_returns_empty_dict(self):
+        """Test that valid but structurally incorrect JSON is handled."""
+        self.assertEqual(self.polling_manager._calculate_current_speeds("123"), {})
 class TestPollingManagerLoop(unittest.TestCase):
     """
     Unit tests for the PollingManager's main polling loop.
@@ -97,70 +114,86 @@ class TestPollingManagerLoop(unittest.TestCase):
         self.mock_context = Mock()
         self.mock_context.task_queue = Mock()
         self.mock_context.get_ping_target.return_value = "8.8.8.8"
+        self.mock_context.main_controller = Mock()
         self.polling_manager = PollingManager(self.mock_context)
         self.polling_manager.start_all(diagnostics_interval=5, speed_interval=1)
 
-    @patch('gui.polling_manager.time.sleep')
     @patch('gui.polling_manager.time.time')
-    @patch('gui.polling_manager.get_raw_network_stats')
     @patch('gui.polling_manager.get_current_wifi_details')
     @patch('gui.polling_manager.get_network_diagnostics')
-    def test_first_poll_runs_all_tasks(self, mock_get_diag, mock_get_wifi, mock_get_stats, mock_time, mock_sleep):
+    def test_first_poll_runs_all_tasks(self, mock_get_diag, mock_get_wifi, mock_time):
         """Test that the very first poll runs both heavy and light tasks."""
         # Arrange
         mock_time.return_value = 1000.0
         mock_get_diag.return_value = {'Public IP': '1.2.3.4'}
         mock_get_wifi.return_value = {'ssid': 'TestNet'}
-        mock_get_stats.return_value = {'Wi-Fi': {'received': 100, 'sent': 50}}
-        # Make the loop run only once by raising an exception
-        mock_sleep.side_effect = InterruptedError
-
-        # Act
-        with self.assertRaises(InterruptedError):
-            self.polling_manager._poll_loop()
+        
+        # Run the loop in a thread and use an event to stop it after one iteration.
+        stop_event = threading.Event()
+        self.polling_manager.is_running = True # Manually set for test
+        poll_thread = threading.Thread(target=self.polling_manager._poll_loop, args=(stop_event,))
+        poll_thread.start()
+        time.sleep(0.1) # Give the loop time to run once
+        stop_event.set() # Signal the loop to stop
+        poll_thread.join(timeout=1) # Wait for the thread to finish
 
         # Assert
         # Check that all data fetching functions were called
         mock_get_diag.assert_called_once()
         mock_get_wifi.assert_called_once()
-        mock_get_stats.assert_called_once()
 
         # Check that all messages were put into the queue
         expected_calls = [
-            call.put({'type': 'diagnostics_update', 'data': {'Public IP': '1.2.3.4'}}),
             call.put({'type': 'wifi_status_update', 'data': {'ssid': 'TestNet'}}),
-            call.put({'type': 'speed_update', 'data': {}}) # Speed is empty on first run
+            call.put({'type': 'diagnostics_update', 'data': {'Public IP': '1.2.3.4'}})
         ]
         self.mock_context.task_queue.assert_has_calls(expected_calls, any_order=True)
 
-    @patch('gui.polling_manager.time.sleep')
     @patch('gui.polling_manager.time.time')
-    @patch('gui.polling_manager.get_raw_network_stats')
     @patch('gui.polling_manager.get_current_wifi_details')
     @patch('gui.polling_manager.get_network_diagnostics')
-    def test_subsequent_poll_runs_only_light_tasks(self, mock_get_diag, mock_get_wifi, mock_get_stats, mock_time, mock_sleep):
+    def test_subsequent_poll_runs_only_light_tasks(self, mock_get_diag, mock_get_wifi, mock_time):
         """Test that a subsequent poll (before interval) only runs speed calculation."""
         # Arrange
+        self.polling_manager.diagnostics_interval = 0.1 # Shorten interval for test
         # Simulate two loop runs: one at t=1000, one at t=1001
         mock_time.side_effect = [1000.0, 1001.0]
-        mock_get_stats.return_value = {}
-        # Make the loop run twice
-        mock_sleep.side_effect = [None, InterruptedError]
-
-        # Act
-        with self.assertRaises(InterruptedError):
-            self.polling_manager._poll_loop()
+        
+        # Run the loop in a thread and use an event to stop it after two iterations.
+        stop_event = threading.Event()
+        self.polling_manager.is_running = True
+        poll_thread = threading.Thread(target=self.polling_manager._poll_loop, args=(stop_event,))
+        poll_thread.start()
+        
+        # Wait long enough for two cycles
+        time.sleep(self.polling_manager.diagnostics_interval * 1.5)
+        
+        stop_event.set() # Signal the loop to stop
+        poll_thread.join(timeout=1) # Wait for the thread to finish
 
         # Assert
-        # Heavy diagnostics should only be called on the first run
-        mock_get_diag.assert_called_once()
-        mock_get_wifi.assert_called_once()
-        # Speed calculation runs every time
-        self.assertEqual(mock_get_stats.call_count, 2)
+        # In the main loop, these tasks run on every iteration.
+        self.assertEqual(mock_get_diag.call_count, 2)
+        self.assertEqual(mock_get_wifi.call_count, 2)
 
-        # Check that the queue got the speed_update message on the second run
-        self.mock_context.task_queue.put.assert_called_with({'type': 'speed_update', 'data': {}})
+    @patch('gui.polling_manager.subprocess.Popen')
+    def test_speed_poll_loop_skips_when_no_adapter_selected(self, mock_popen):
+        """Test that speed calculation is skipped if no adapter is selected."""
+        # Arrange
+        self.polling_manager.is_running = True
+        self.mock_context.main_controller.get_selected_adapter_name.return_value = None
+        
+        # Mock the process to simulate it running and producing output
+        mock_process = mock_popen.return_value
+        # Make the loop run only once by having poll() return a value on the second call
+        mock_process.poll.side_effect = [None, 0]
+        mock_process.stdout.readline.return_value = '{"Name": "Wi-Fi", "ReceivedBytes": 100, "SentBytes": 50}'
 
+        # Act: We can't easily test the loop, so we call the method directly
+        # and check if the calculation part is skipped.
+        with patch.object(self.polling_manager, '_calculate_current_speeds') as mock_calculate:
+            self.polling_manager._speed_poll_loop_powershell()
+            mock_calculate.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

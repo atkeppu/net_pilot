@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 
+from localization import get_string
+
 
 class AdapterListFrame(ttk.LabelFrame):
     """
@@ -9,7 +11,7 @@ class AdapterListFrame(ttk.LabelFrame):
     """
 
     def __init__(self, parent, on_select_callback, **kwargs):
-        super().__init__(parent, text="Available Adapters", **kwargs)
+        super().__init__(parent, text=get_string('available_adapters_title'), **kwargs)
         self.on_select_callback = on_select_callback
 
         self.adapter_listbox = tk.Listbox(self, height=10)
@@ -31,7 +33,7 @@ class AdapterListFrame(ttk.LabelFrame):
         """Clears and populates the listbox with adapter data."""
         self.adapter_listbox.delete(0, tk.END)
         if not adapters_data:
-            self.adapter_listbox.insert(tk.END, "No adapters found.")
+            self.adapter_listbox.insert(tk.END, get_string('no_adapters_found'))
         else:
             for adapter in adapters_data:
                 display_text = f"{adapter.get('Name', 'N/A')} ({adapter.get('admin_state', 'N/A')})"

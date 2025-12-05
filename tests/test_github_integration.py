@@ -1,13 +1,8 @@
 import unittest
-import sys
-import os
 from unittest.mock import patch, Mock
 import subprocess
 
-# Add project root to path to allow importing from 'logic'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from github_integration import check_github_cli_auth, publish_to_github
+from github_integration import check_github_cli_auth, publish_to_github, get_repo_from_git_config, create_github_release
 from exceptions import NetworkManagerError
 
 class TestGitHubIntegration(unittest.TestCase):
@@ -110,6 +105,52 @@ class TestGitHubIntegration(unittest.TestCase):
             publish_to_github("v1.0.0", "user/repo", "Title", "Notes")
         
         self.assertIn(error_output, str(cm.exception))
+
+    @patch('github_integration.get_repo_from_git_config', return_value='owner/detected')
+    @patch('github_integration.subprocess.run')
+    def test_create_release_uses_detected_repo(self, mock_run, mock_get_repo):
+        """Test that create_github_release calls get_repo_from_git_config if repo is not provided."""
+        # Act
+        create_github_release("v1.0", "Title", "Notes")
+
+        # Assert
+        mock_get_repo.assert_called_once()
+        # Check that the detected repo name was used in the command
+        command_str = " ".join(mock_run.call_args[0][0])
+        self.assertIn("--repo owner/detected", command_str)
+
+class TestGetRepoFromGitConfig(unittest.TestCase):
+    """Tests for the get_repo_from_git_config function."""
+
+    @patch('github_integration.subprocess.run')
+    def test_get_repo_from_https_url(self, mock_run):
+        """Test parsing a standard HTTPS remote URL."""
+        mock_run.return_value.stdout = "https://github.com/test-owner/test-repo.git"
+        self.assertEqual(get_repo_from_git_config(), "test-owner/test-repo")
+
+    @patch('github_integration.subprocess.run')
+    def test_get_repo_from_ssh_url(self, mock_run):
+        """Test parsing a standard SSH remote URL."""
+        mock_run.return_value.stdout = "git@github.com:test-owner/test-repo.git"
+        self.assertEqual(get_repo_from_git_config(), "test-owner/test-repo")
+
+    @patch('github_integration.subprocess.run')
+    def test_get_repo_from_url_without_git_suffix(self, mock_run):
+        """Test parsing a URL without the .git suffix."""
+        mock_run.return_value.stdout = "https://github.com/test-owner/test-repo"
+        self.assertEqual(get_repo_from_git_config(), "test-owner/test-repo")
+
+    @patch('github_integration.subprocess.run')
+    def test_get_repo_command_fails(self, mock_run):
+        """Test that None is returned if the git command fails."""
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git remote get-url origin")
+        self.assertIsNone(get_repo_from_git_config())
+
+    @patch('github_integration.subprocess.run')
+    def test_get_repo_not_a_git_repo(self, mock_run):
+        """Test that None is returned if not in a git repository."""
+        mock_run.side_effect = FileNotFoundError
+        self.assertIsNone(get_repo_from_git_config())
 
 if __name__ == '__main__':
     unittest.main()
