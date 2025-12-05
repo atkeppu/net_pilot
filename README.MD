@@ -103,3 +103,28 @@ Voit paketoida sovelluksen yhdeksi `.exe`-tiedostoksi `build.py`-skriptillä.
 # Luo uusi julkinen projekti nimeltä "NetPilot" GitHubiin
 python git_helper.py NetPilot -d "Projektin kuvaus tähän"
 ```
+
+## Kehitysprosessi ja Tekoälyn Rooli
+
+Tämä projekti on kehitetty hyödyntäen laajasti tekoälyavusteisia työkaluja, kuten Gemini Code Assistia. Tekoälyä on käytetty monissa kehitysvaiheissa:
+
+*   **Koodin generointi:** Rutiininomaisten funktioiden ja koodirakenteiden luominen.
+*   **Refaktorointi:** Koodin laadun ja luettavuuden parantaminen.
+*   **Virheenkorjaus:** Ongelmien tunnistaminen ja korjausehdotusten saaminen.
+*   **Dokumentaatio:** Kommenttien, `README`-tiedoston ja muiden selittävien tekstien kirjoittaminen.
+*   **Testaus:** Yksikkötestien luominen ja testauksen suunnittelu.
+
+Tekoälyn käyttö on nopeuttanut kehitystä merkittävästi ja auttanut ylläpitämään korkeaa koodin laatua.
+
+## Osallistuminen (Contributing)
+
+Apu projektin kehittämisessä on tervetullutta! Jos haluat osallistua, voit tehdä sen seuraavilla tavoilla:
+
+1.  **Ilmoita bugeista:** Jos löydät virheen, luo uusi Issue ja kuvaile ongelma mahdollisimman tarkasti.
+2.  **Ehdota parannuksia:** Onko sinulla idea uudesta ominaisuudesta tai parannuksesta? Avaa Issue ja kerro siitä.
+3.  **Lähetä Pull Request:** Jos olet korjannut bugin tai toteuttanut uuden ominaisuuden, voit lähettää Pull Requestin.
+
+## Lisenssi
+
+Tämä projekti on lisensoitu MIT-lisenssillä. Tämä tarkoittaa, että voit vapaasti käyttää, kopioida, muokata ja jakaa koodia, kunhan alkuperäinen lisenssi ja tekijänoikeusilmoitus säilytetään.
+```

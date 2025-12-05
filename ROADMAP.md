@@ -1,36 +1,30 @@
 # Projektin Roadmap
 
-Tämä roadmap kokoaa priorisoidut parannusehdotukset projektillesi.
+Tämä on päivitetty roadmap, joka sisältää jäljellä olevat priorisoidut parannusehdotukset projektille.
 
-## Korkea prioriteetti (tee ensin)
-- Korjaa resource_path PyInstaller-tuella (getattr/sys._MEIPASS).
-- Lisää turvallinen virheilmoitushelper (piilotettu Tk-root, fallback logging).
-- Pre-flight checks: OS- ja admin-tarkistus, lisää lokitiedoston polku virheilmoituksiin.
-- Lisää yksikkötestit business-logiikalle (esim. logic.system.is_admin).
-- Lokitus: RotatingFileHandler, lokitiedoston polku konfiguroitavaksi.
+## Seuraavat askeleet
 
-## Keskitaso
-- CI (GitHub Actions): lint (black/isort), flake8/mypy, pytest, build (pyinstaller).
-- Lisää requirements.txt tai pyproject.toml.
-- Staattinen analyysi: mypy, flake8, pre-commit.
+### 1. Yksikkötestien laajentaminen
+Vaikka testausympäristö on pystyssä, itse testien kattavuutta tulee parantaa.
 
-## Matala prioriteetti
-- Paketoiminen/installer (PyInstaller + Inno Setup/WiX).
-- Relaunch-as-admin -käynnistysskripti Windowsille.
-- Lokalisaatio (FI/EN) ja paremmat käyttäjäviestit.
-- Turvallisuus: älä paljasta sisäisiä polkuja virheilmoituksissa.
+*   **Tehtävä:** Kirjoita lisää yksikkötestejä `logic`-kansion funktioille. Tavoitteena on nostaa testikattavuus (`coverage`) yli 80 %:iin.
+*   **Miksi:** Varmistaa koodin vakauden ja helpottaa tulevia muutoksia.
 
-## Testaus & QA
-- Lisää tests/ -hakemisto ja pytest-konfiguraatio.
-- Lisää testikattavuusraportti CI:hin.
+### 2. Jatkuvan integraation (CI) käyttöönotto
+Automatisoidaan koodin laadun tarkistus ja testien ajaminen.
 
-## Tiedostot joita kannattaa lisätä
-- ROADMAP.md
-- requirements.txt / pyproject.toml
-- .github/workflows/ci.yml
-- tests/
+*   **Tehtävä:** Luo GitHub Actions -työnkulku (`.github/workflows/ci.yml`), joka suorittaa automaattisesti:
+    *   Staattisen analyysin (esim. `flake8`, `mypy`).
+    *   Yksikkötestit (`pytest`).
+    *   Testikattavuusraportin generoinnin.
+*   **Miksi:** Varmistaa, että uudet muutokset eivät riko olemassa olevaa toiminnallisuutta ja ylläpitävät koodin laatustandardeja.
 
-## Seuraavat askeleet (ehdotus)
-1. Hyväksy roadmap tai pyydä muutoksia.
-2. Halutessasi lisään ROADMAP.md repoon ja teen commitin/PR:n.
-3. Toteutan ensimmäisen PR:n: resource_path + turvallinen error helper.
+### 3. Asennuspaketin luominen
+Vaikka `.exe`-tiedosto on kätevä, ammattimainen asennusohjelma parantaa käyttökokemusta.
+
+*   **Tehtävä:** Tutki ja ota käyttöön työkalu (esim. Inno Setup tai WiX Toolset) asennuspaketin luomiseksi `build.py`:n tuottamasta `.exe`-tiedostosta.
+*   **Miksi:** Mahdollistaa mm. Käynnistä-valikon pikakuvakkeiden ja ohjelman helpon poistamisen.
+
+### 4. Resurssien hallinnan parantaminen
+*   **Tehtävä:** Luo yleiskäyttöinen `resource_path`-funktio, joka osaa hakea resurssitiedostoja (kuten kuvakkeet) sekä lähdekoodista ajettaessa että PyInstallerin luomasta paketista (`sys._MEIPASS`).
+*   **Miksi:** Tekee sovelluksesta robustimman ja helpottaa uusien resurssien lisäämistä tulevaisuudessa.

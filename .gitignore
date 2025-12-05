@@ -40,6 +40,9 @@ build/
 dist/
 *.spec
 
+# Temporary files from build script
+version.txt
+
 # Logs
 # -------------------------------------------------------------------
 *.log
@@ -69,3 +72,7 @@ htmlcov/
 # -------------------------------------------------------------------
 .DS_Store
 Thumbs.db
+
+# Local configuration files
+# -------------------------------------------------------------------
+config.ini
