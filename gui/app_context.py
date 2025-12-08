@@ -21,14 +21,10 @@ class AppContext:
         self.status_var = None # Will be initialized later
         self.open_windows = {} # Tracks open Toplevel windows
         
-        # Create core components that don't have a direct UI dependency.
-        self.main_controller = MainController(task_queue=self.task_queue)
-        self.action_handler = ActionHandler(
-            context=self,
-            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name
-        )
-
         # These will be initialized after the UI is created.
+        # MainController is also initialized later as it depends on the full context.
+        self.main_controller = None
+        self.action_handler = None
         self.queue_handler = None
         self.polling_manager = None
         self.root = None # The main tk.Tk() window
@@ -43,6 +39,12 @@ class AppContext:
         self.status_var = status_var
         self.diagnostics_frame = ui_frames['diagnostics']
 
+        # Create components that depend on the full context.
+        self.main_controller = MainController(task_queue=self.task_queue)
+        self.action_handler = ActionHandler(
+            context=self,
+            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name
+        )
         self.queue_handler = QueueHandler(
             context=self,
             ui_frames=ui_frames

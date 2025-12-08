@@ -13,8 +13,8 @@ class TestAppContext(unittest.TestCase):
     def test_initialization(self):
         """Test that components are initialized as expected."""
         self.assertIsNotNone(self.context.task_queue)
-        self.assertIsNotNone(self.context.main_controller)
-        self.assertIsNotNone(self.context.action_handler)
+        self.assertIsNone(self.context.main_controller)
+        self.assertIsNone(self.context.action_handler)
         self.assertIsNone(self.context.queue_handler)
         self.assertIsNone(self.context.polling_manager)
 

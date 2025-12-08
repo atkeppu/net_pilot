@@ -26,16 +26,17 @@ class ActionHandler:
         self.get_selected_adapter_name_func = get_selected_adapter_name_func
         self.app_logic = app_logic
 
-    def run_background_task(self, task_func, *args, on_complete=None):
+    def run_background_task(self, task_func, *args, on_complete: Callable | None = None, on_error: Callable | None = None):
         """A generic wrapper to run a function in a background thread."""
         task_name = task_func.__name__
         logger.info("Starting background task: %s", task_name)
 
         def worker():
             try:
-                task_func(*args)
+                result = task_func(*args)
                 if on_complete:
-                    self.context.task_queue.put({'type': 'ui_update', 'func': on_complete})
+                    # Pass result to the on_complete callback if it's not None
+                    self.context.task_queue.put({'type': 'ui_update', 'func': lambda: on_complete(result)})
                 logger.info("Background task '%s' completed successfully.", task_name)
             except NetworkManagerError as e:
                 logger.error("A known error occurred in task '%s': %s", task_name, e, exc_info=True)
@@ -43,6 +44,8 @@ class ActionHandler:
                 # Still call on_complete in case of a handled error to allow UI cleanup (e.g., re-enabling buttons)
                 if on_complete:
                     self.context.task_queue.put({'type': 'ui_update', 'func': on_complete})
+                if on_error:
+                    self.context.task_queue.put({'type': 'ui_update', 'func': lambda: on_error(e)})
             except Exception as e:
                 logger.critical("An unhandled error occurred in background task '%s'.", task_name, exc_info=True)
                 self.context.task_queue.put({'type': 'unhandled_error', 'error': e})
@@ -79,6 +82,8 @@ class ActionHandler:
         if messagebox.askyesno(get_string('menu_reset_stack'), "This will reset your network configuration and require a reboot. Are you sure?"):
             self.context.root.status_var.set(get_string('status_reset_attempt'))
             self.run_background_task(self._execute_reset_in_thread)
+        else:
+            self.context.root.status_var.set(get_string('status_op_cancelled'))
 
     def _execute_reset_in_thread(self):
         app_logic.reset_network_stack()
@@ -149,7 +154,15 @@ class ActionHandler:
 
     def show_publish_dialog(self):
         """Opens the publish dialog."""
-        PublishDialog(self.context)
+        self.context.status_var.set(get_string('publish_checking_auth'))
+        is_ok, message = self.app_logic.check_github_cli_auth()
+        if is_ok:
+            self.context.status_var.set(get_string('publish_ready'))
+            PublishDialog(self.context)
+        else:
+            logger.error("GitHub CLI auth check failed: %s", message)
+            self.context.status_var.set(get_string('publish_auth_failed'))
+            messagebox.showerror(get_string('publish_auth_failed_title'), message)
 
     def publish_release(self, repo: str, tag: str, title: str, notes: str, on_complete: Callable | None = None):
         """
@@ -184,7 +197,7 @@ class ActionHandler:
             messagebox.showerror("Asset Not Found", f"Could not find a release file (installer or .exe) to upload in the 'dist' directory.\n\nPlease run the build script first.")
             return
 
-        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, assets_to_upload, on_complete=on_complete)
+        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, assets_to_upload, on_complete=on_complete, on_error=on_complete)
 
     def _execute_publish_in_thread(self, repo: str, tag: str, title: str, notes: str, asset_paths: list[str] | None = None):
         release_url = app_logic.create_github_release(tag, title, notes, repo, asset_paths)

@@ -86,6 +86,43 @@ Voit paketoida sovelluksen yhdeksi `.exe`-tiedostoksi `build.py`-skriptillä.
     ```
 3.  Valmis `NetPilot.exe`-tiedosto löytyy `dist`-kansiosta.
 
+#### Build-prosessin työkalut
+
+`build.py`-skripti hyödyntää kahta ulkoista työkalua, jotka on asennettava erikseen:
+
+1.  **UPX (Ultimate Packer for eXecutables)**
+    *   **Mitä tekee:** Pienentää `NetPilot.exe`-tiedoston kokoa merkittävästi (yleensä ~35 MB -> ~15 MB) pakkaamalla sen.
+    *   **Asennus:** Lataa UPX viralliselta sivulta, pura paketti ja lisää `upx.exe` järjestelmän `PATH`-ympäristömuuttujaan (esim. kopioimalla se `C:\Windows`-kansioon). Skripti löytää ja käyttää sitä automaattisesti, jos se on asennettu.
+
+2.  **Inno Setup**
+    *   **Mitä tekee:** Luo ammattimaisen asennusohjelman (`NetPilot-x.x.x-setup.exe`), joka osaa luoda pikakuvakkeita ja mahdollistaa sovelluksen helpon poistamisen Ohjauspaneelista.
+    *   **Asennus:** Lataa ja asenna Inno Setup viralliselta sivulta. `build.py`-skripti olettaa, että se on asennettu oletussijaintiin (`C:\Program Files (x86)\Inno Setup 6`).
+
+> **Huom:** Build-prosessi toimii, vaikka näitä työkaluja ei olisi asennettu. Tällöin `.exe`-tiedosto on suurempi, eikä asennusohjelmaa luoda.
+
+#### Versionumeron hallinta
+
+`build.py`-skripti tukee versionumeron automaattista päivittämistä `--increment`-valitsimella. Tämä on suositeltu tapa hallita versioita ennen uuden julkaisun tekemistä.
+
+*   **Päivitä patch-versio** (esim. 1.4.0 -> 1.4.1):
+    ```bash
+    python build.py --increment patch
+    ```
+*   **Päivitä minor-versio** (esim. 1.4.1 -> 1.5.0):
+    ```bash
+    python build.py --increment minor
+    ```
+
+Jos komento ajetaan ilman `--increment`-valitsinta, skripti käyttää olemassa olevaa versiota `VERSION`-tiedostosta.
+
+### Julkaisuprosessin logiikka
+
+Sovelluksen julkaisuikkuna on suunniteltu joustavaksi:
+
+1.  **Versionumeron päivitys:** Voit päivittää versionumeron `build.py`-skriptillä (`--increment patch`), muokata `VERSION`-tiedostoa käsin tai muuttaa version suoraan julkaisuikkunassa. Onnistuneen julkaisun jälkeen uusi versio tallentuu automaattisesti `VERSION`-tiedostoon.
+2.  **Muutoslokin generointi:** Jos julkaisuikkunassa oleva versio ei vastaa `CHANGELOG.md`-tiedoston versiota, muutosloki generoidaan automaattisesti uudelleen oikealla versiolla.
+3.  **Asennustiedoston etsintä:** Julkaisutoiminto etsii dynaamisesti `dist`-kansiosta minkä tahansa `*-setup.exe`-päätteisen tiedoston. Tämä varmistaa, että oikea asennustiedosto löytyy, vaikka olisit muuttanut versionumeroa dialogissa juuri ennen julkaisua. Jos asennustiedostoa ei löydy, se lataa pelkän `NetPilot.exe`-tiedoston.
+
 ### Arkkitehtuurikaavioiden tarkastelu
 
 `ARCHITECTURE.md`-tiedosto sisältää Mermaid-syntaksilla luotuja kaavioita, jotka visualisoivat sovelluksen rakennetta. Nämä kaaviot eivät välttämättä näy oikein kaikissa Markdown-katseluohjelmissa.

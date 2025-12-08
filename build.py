@@ -71,6 +71,20 @@ def find_iscc() -> Path | None:
             return iscc_path
     return None
 
+def find_upx() -> Path | None:
+    """Finds the UPX executable in the system's PATH."""
+    upx_path = shutil.which("upx")
+    if upx_path:
+        upx_dir = Path(upx_path).parent
+        print(f"   ...Löytyi UPX-pakkaaja kansiosta: {upx_dir}")
+        return upx_dir
+    else:
+        print("\n-> ⚠️  Varoitus: UPX-pakkaajaa ei löytynyt järjestelmästä.")
+        print("   .exe-tiedoston kokoa ei pienennetä. Koko voi olla ~30-40 MB.")
+        print("   Asenna UPX (https://upx.github.io/) ja lisää se PATH-ympäristömuuttujaan pienentääksesi tiedostokoon ~15 MB:iin.")
+        return None
+
+
 def create_version_file(version: str):
     """Creates a version file for PyInstaller."""
     print("-> Luodaan versiotiedostoa...")
@@ -122,7 +136,7 @@ def run_command(command: list[str], description: str):
              print("--------------------------")
 
     except FileNotFoundError:
-        print(f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Onko se asennettu?", file=sys.stderr)
+        print(f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Varmista, että se on asennettu ja sen sijainti on lisätty järjestelmän PATH-ympäristömuuttujaan.", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(f"   ...❌ EPÄONNISTUI! Komento '{' '.join(command)}' palautti virhekoodin.", file=sys.stderr)
@@ -160,40 +174,31 @@ def run_inno_setup(iscc_path: Path, version: str) -> str | None:
         print(f"-> ⚠️ Varoitus: Inno Setup -skriptiä '{setup_script.name}' ei löytynyt. Ohitetaan asennusohjelman luonti.")
         return None
 
-    # Read setup.iss to find the output directory and filename
-    output_dir_match = re.search(r"^\s*OutputDir\s*=\s*(.*)\s*$", setup_script.read_text(), re.MULTILINE)
-    output_base_filename_match = re.search(r"^\s*OutputBaseFilename\s*=\s*(.*)\s*$", setup_script.read_text(), re.MULTILINE)
-
-    if not (output_dir_match and output_base_filename_match):
-        print("-> ❌ VIRHE: Ei voitu lukea 'OutputDir' ja 'OutputBaseFilename' arvoja setup.iss-tiedostosta.", file=sys.stderr)
-        return None
-
-    # The path where Inno Setup will create the installer
-    inno_output_dir = Path(output_dir_match.group(1).strip())
-    inno_output_filename = f"{output_base_filename_match.group(1).strip()}.exe"
-    original_installer_path = inno_output_dir / inno_output_filename
-
-    # Define the new, versioned filename in the main dist directory
-    final_installer_name = f"{APP_NAME}-v{version}-setup.exe"
+    # Define the versioned filename in the main dist directory.
+    # Inno Setup script creates the file without the 'v' prefix.
+    final_installer_name = f"{APP_NAME}-{version}-setup.exe"
     final_installer_path = Path.cwd() / "dist" / final_installer_name
 
-    # Clean up potential old installer before building
-    if final_installer_path.exists():
-        final_installer_path.unlink()
-    if original_installer_path.exists():
-        original_installer_path.unlink()
+    # Clean up any old installers from the dist directory before building a new one.
+    dist_dir = Path.cwd() / "dist"
+    for old_installer in dist_dir.glob("*-setup.exe"):
+        print(f"   ...Poistetaan vanha asennustiedosto: {old_installer.name}")
+        old_installer.unlink()
 
     # Run Inno Setup
-    command = [str(iscc_path), str(setup_script)]
+    # Pass the version number directly to the Inno Setup compiler.
+    # This is more reliable than having Inno Setup read it from the .exe file properties.
+    # The /D flag defines a variable that can be used in the .iss script.
+    command = [str(iscc_path), f"/DAppVersion={version}", str(setup_script)]
     run_command(command, "Rakennetaan asennusohjelmaa Inno Setupilla")
 
-    # Move and rename the created installer
-    if original_installer_path.is_file():
-        shutil.move(original_installer_path, final_installer_path)
-        print(f"   ...✅ Asennusohjelma siirretty ja nimetty: {final_installer_path}")
+    # Inno Setup script is configured to output directly to the dist folder with the correct name.
+    # We just need to verify it was created.
+    if final_installer_path.is_file():
+        print(f"   ...✅ Asennusohjelma luotu onnistuneesti: {final_installer_path}")
         return str(final_installer_path)
     else:
-        print(f"   ...❌ VIRHE: Odotettua asennustiedostoa ei löytynyt sijainnista: {original_installer_path}", file=sys.stderr)
+        print(f"   ...❌ VIRHE: Odotettua asennustiedostoa ei löytynyt sijainnista: {final_installer_path}", file=sys.stderr)
         return None
 
 def create_git_info_file():
@@ -246,6 +251,49 @@ def generate_changelog(version: str):
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("   ...❌ VIRHE: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)
 
+def format_size(size_bytes: int) -> str:
+    """Formats a size in bytes to a human-readable string (KB, MB)."""
+    if not isinstance(size_bytes, int) or size_bytes < 0:
+        return "N/A"
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    if size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.2f} KB"
+    return f"{size_bytes / (1024 * 1024):.2f} MB"
+
+def print_summary(files_to_summarize: list[Path | None]):
+    """Prints a summary of created files and their sizes."""
+    print("\n--- Yhteenveto luoduista tiedostoista ---")
+    for file_path in files_to_summarize:
+        if file_path and file_path.exists():
+            size = file_path.stat().st_size
+            print(f"  ✅ {file_path.name:<35} ({format_size(size):>10}) -> {file_path.parent}")
+    print("-------------------------------------------")
+
+def get_pyinstaller_command(version_file: str, upx_dir: Path | None) -> list[str]:
+    """Constructs the PyInstaller command list."""
+    command = [
+        sys.executable,
+        "-m", "PyInstaller",
+        "--noconfirm",
+        "--onefile",
+        "--windowed",
+        f"--icon={ICON_FILE}",
+        f"--manifest={MANIFEST_FILE}",
+        # Exclude pygame, as it's being incorrectly included and bloating the exe.
+        "--exclude-module", "pygame",
+        "--hidden-import=requests",
+        "--add-data", f"logic{os.pathsep}logic",
+        "--add-data", f"{ICON_FILE}{os.pathsep}.",
+        f"--version-file={version_file}",
+        f"--name={APP_NAME}",
+        ENTRY_POINT
+    ]
+    if upx_dir:
+        command.append("--upx-dir")
+        command.append(str(upx_dir))
+    return command
+
 def main():
     """Main function that builds the executable file."""
     parser = argparse.ArgumentParser(description=f"Build script for {APP_NAME}.")
@@ -276,25 +324,9 @@ def main():
         app_version = get_app_version()
         create_version_file(app_version)
 
-        # 4. Define and run the PyInstaller command
-        pyinstaller_command = [
-            sys.executable,     # Use 'python.exe'
-            "-m", "PyInstaller",# to run the PyInstaller module
-            "--noconfirm",      # Ylikirjoittaa aiemmat build-kansion tiedostot ilman kysymystä
-            "--onefile",        # Luo yhden suoritettavan tiedoston
-            "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa
-            f"--icon={ICON_FILE}",
-            f"--manifest={MANIFEST_FILE}",
-            # Varmistetaan, että dynaamisesti ladatut kirjastot tulevat mukaan.
-            "--hidden-import=requests",
-            # Lisätään PowerShell-skriptit ja ikoni mukaan pakettiin.
-            # Muoto on "lähde;kohde", jossa '.' on juurihakemisto paketissa.
-            "--add-data", f"logic{os.pathsep}logic",
-            "--add-data", f"{ICON_FILE}{os.pathsep}.",
-            f"--version-file={VERSION_FILE}",
-            f"--name={APP_NAME}",
-            ENTRY_POINT
-        ]
+        # 4. Find UPX and construct the PyInstaller command
+        upx_dir = find_upx()
+        pyinstaller_command = get_pyinstaller_command(VERSION_FILE, upx_dir)
         run_command(pyinstaller_command, "Rakennetaan .exe-tiedostoa PyInstallerilla")
 
         # Create the git_info.json file inside the 'dist' directory
@@ -306,15 +338,19 @@ def main():
         # 5. Find and run Inno Setup compiler
         iscc_path = find_iscc()
         installer_path = None
+        installer_path_obj = None
         if iscc_path:
             installer_path = run_inno_setup(iscc_path, app_version)
+            if installer_path:
+                installer_path_obj = Path(installer_path)
         else:
             print("\n-> ⚠️ Varoitus: Inno Setup -kääntäjää (ISCC.exe) ei löytynyt.")
             print("   Asenna Inno Setup (https://jrsoftware.org/isinfo.php) ja varmista, että se on asennettu oletussijaintiin, jotta asennusohjelma voidaan luoda automaattisesti.")
 
-        print(f"\n--- VALMIS! ---")
-        print(f"✅ {APP_NAME}.exe löytyy nyt kansiosta: {Path.cwd() / 'dist'}")
-        print(f"✅ Muutosloki löytyy nyt tiedostosta: {Path.cwd() / 'CHANGELOG.md'}")
+        # 6. Print final summary
+        dist_dir = Path.cwd() / 'dist'
+        files = [dist_dir / f"{APP_NAME}.exe", installer_path_obj, Path.cwd() / "CHANGELOG.md"]
+        print_summary(files)
     finally:
         # Final cleanup: Ensure the temporary version file is always removed.
         if os.path.exists(VERSION_FILE):

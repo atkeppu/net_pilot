@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, MagicMock, patch, call
 
 import gui
 from gui.action_handler import ActionHandler
@@ -57,7 +57,7 @@ class TestActionHandler(unittest.TestCase):
     @patch('gui.action_handler.threading.Thread')
     def test_run_background_task_on_complete_callback(self, mock_thread):
         """Test that the on_complete callback is called via the queue."""
-        mock_task = Mock(__name__='mock_task')
+        mock_task = Mock(__name__='mock_task', return_value="task_result")
         mock_on_complete = Mock(__name__='mock_on_complete')
 
         self.handler.run_background_task(mock_task, on_complete=mock_on_complete)
@@ -66,8 +66,14 @@ class TestActionHandler(unittest.TestCase):
         worker_func = mock_thread.call_args.kwargs['target']
         worker_func()
 
-        # The on_complete function should be put into the queue inside a 'ui_update' message
-        self.mock_context.task_queue.put.assert_called_with({'type': 'ui_update', 'func': mock_on_complete})
+        # Assert that put was called with a dictionary containing a 'func' key
+        self.mock_context.task_queue.put.assert_called_once()
+        call_args = self.mock_context.task_queue.put.call_args[0][0]
+        self.assertEqual(call_args['type'], 'ui_update')
+        # Execute the lambda function that was passed to the queue
+        call_args['func']()
+        # Now, assert that our original on_complete mock was called with the task's result
+        mock_on_complete.assert_called_once_with("task_result")
 
     @patch('gui.action_handler.messagebox.showwarning')
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
@@ -113,7 +119,7 @@ class TestActionHandler(unittest.TestCase):
         self.handler.confirm_reset_network_stack()
         mock_askyesno.assert_called_once()
         mock_run_task.assert_not_called()
-        self.mock_context.root.status_var.set.assert_not_called()
+        self.mock_context.root.status_var.set.assert_called_with(get_string('status_op_cancelled'))
 
     @patch('gui.action_handler.ActionHandler.run_background_task')
     def test_flush_dns_cache(self, mock_run_task):
@@ -157,28 +163,44 @@ class TestActionHandler(unittest.TestCase):
         mock_traceroute_window.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.app_logic.check_github_cli_auth', return_value=(True, ""))
-    @patch('gui.action_handler.PublishWindow')
-    def test_show_publish_dialog(self, mock_publish_window, mock_check_auth):
+    @patch('gui.action_handler.PublishDialog') 
+    def test_show_publish_dialog(self, mock_publish_dialog, mock_check_auth):
         """Test that show_publish_dialog creates a PublishWindow instance."""
         self.handler.show_publish_dialog()
-        mock_publish_window.assert_called_once_with(self.mock_context)
+        mock_publish_dialog.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.app_logic.check_github_cli_auth', return_value=(False, "Auth error"))
-    @patch('gui.dialogs.messagebox.showerror')
-    @patch('gui.dialogs.PublishWindow')
-    def test_show_publish_dialog_auth_fails(self, mock_publish_window, mock_showerror, mock_check_auth):
+    @patch('gui.action_handler.messagebox.showerror') # messagebox is imported directly in action_handler
+    @patch('gui.action_handler.PublishDialog')
+    def test_show_publish_dialog_auth_fails(self, mock_publish_dialog, mock_showerror, mock_check_auth_app_logic):
         """Test that an error is shown if GitHub auth fails."""
         self.handler.show_publish_dialog()
-        mock_check_auth.assert_called_once()
+        mock_check_auth_app_logic.assert_called_once()
         mock_showerror.assert_called_once()
-        mock_publish_window.assert_not_called()
+        mock_publish_dialog.assert_not_called()
 
     @patch('gui.action_handler.ActionHandler.run_background_task')
-    def test_publish_release(self, mock_run_task):
+    @patch('gui.action_handler.app_logic.get_dist_path')
+    @patch('tkinter.messagebox.showerror') # Patch messagebox.showerror as it might be called if assets are not found
+    def test_publish_release(self, mock_showerror, mock_get_dist_path, mock_run_task):
         """Test that publish_release calls the background task with correct arguments."""
-        args = ("owner/repo", "v1.0", "Title", "Notes")
-        self.handler.publish_release(*args)
-        mock_run_task.assert_called_once_with(self.handler._execute_publish_in_thread, *args)
+        repo = "owner/repo"
+        tag = "v1.0"
+        title = "Title"
+        notes = "Notes"
+
+        mock_dist_path_obj = MagicMock()
+        mock_get_dist_path.return_value = mock_dist_path_obj
+        # Mock the __truediv__ method to handle the '/' operator
+        mock_dist_path_obj.__truediv__.return_value = Mock(is_file=Mock(return_value=False))
+
+        # Simulate finding an installer file in the 'dist' directory
+        mock_dist_path_obj.glob.return_value = iter([Mock(is_file=Mock(return_value=True), __str__=Mock(return_value="dist/NetPilot-setup.exe"))])
+
+        self.handler.publish_release(repo, tag, title, notes)
+        
+        expected_assets = ["dist/NetPilot-setup.exe"]
+        mock_run_task.assert_called_once_with(self.handler._execute_publish_in_thread, repo, tag, title, notes, expected_assets, on_complete=None, on_error=None)
     
     @patch('app_logic.create_github_release', side_effect=NetworkManagerError("API Error"))
     def test_execute_publish_in_thread_failure(self, mock_create_release):

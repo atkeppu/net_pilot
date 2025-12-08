@@ -1,9 +1,6 @@
 ; NetPilot Inno Setup Script
 ; Tämä skripti luo asennusohjelman NetPilot-sovellukselle.
 
-; Käytä ISCC-esikäsittelijää versionumeron lukemiseen tiedostosta.
-#define AppVersion GetFileVersion("dist\NetPilot.exe")
-
 [Setup]
 ; Perusasetukset sovellukselle
 AppName=NetPilot
