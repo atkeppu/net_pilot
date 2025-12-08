@@ -61,11 +61,10 @@ class NetworkManagerApp(tk.Tk):
 
         ui_frames['adapter_list'] = AdapterListFrame(main_frame, on_select_callback=lambda index: self.context.main_controller.on_adapter_select(index))
         ui_frames['adapter_list'].pack(fill=tk.BOTH, expand=True, pady=5)
-
         ui_frames['adapter_details'] = AdapterDetailsFrame(
             main_frame,
-            on_connect_callback=partial(self.context.action_handler.toggle_selected_adapter, 'enable'),
-            on_disconnect_callback=partial(self.context.action_handler.toggle_selected_adapter, 'disable'),
+            on_connect_callback=partial(self.context.action_handler.network.toggle_adapter, 'enable'),
+            on_disconnect_callback=partial(self.context.action_handler.network.toggle_adapter, 'disable'),
             on_status_update_callback=self.status_var.set
         )
         ui_frames['adapter_details'].pack(fill=tk.X, pady=5)

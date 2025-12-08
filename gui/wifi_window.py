@@ -48,7 +48,7 @@ class WifiConnectWindow(BaseTaskWindow):
             self.status_label.config(text=get_string('status_wifi_disconnected'))
             self.available_tab.set_button_state('disconnect', tk.DISABLED)
             self.saved_tab.set_button_state('disconnect', tk.DISABLED)
-            self.context.action_handler.disconnect_current_wifi()
+            self.context.action_handler.network.disconnect_current_wifi()
 
     def _on_disconnect_complete(self):
         """Re-enables disconnect buttons on completion."""

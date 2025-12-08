@@ -22,7 +22,7 @@ class TestActionHandler(unittest.TestCase):
     def test_run_background_task_starts_thread(self, mock_thread):
         """Test that run_background_task creates and starts a thread."""
         mock_task = Mock(__name__='mock_task')
-        self.handler.run_background_task(mock_task, "arg1")
+        self.handler.network.run_background_task(mock_task, "arg1")
 
         mock_thread.assert_called_once()
         self.assertTrue(mock_thread.call_args[1]['daemon'])
@@ -32,7 +32,7 @@ class TestActionHandler(unittest.TestCase):
     def test_run_background_task_network_manager_error(self, mock_thread):
         """Test that a NetworkManagerError is put into the queue."""
         task_func = Mock(side_effect=NetworkManagerError("Known error"), __name__='task_func')
-        self.handler.run_background_task(task_func)
+        self.handler.network.run_background_task(task_func)
 
         # Get the worker function passed to the Thread target
         worker_func = mock_thread.call_args.kwargs['target']
@@ -44,7 +44,7 @@ class TestActionHandler(unittest.TestCase):
     def test_run_background_task_unhandled_error(self, mock_thread):
         """Test that an unhandled exception is put into the queue."""
         task_func = Mock(side_effect=ValueError("Unhandled"), __name__='task_func')
-        self.handler.run_background_task(task_func)
+        self.handler.network.run_background_task(task_func)
 
         # Check that the thread was started with a worker that calls the task
         # and that the unhandled_error is put to the queue.
@@ -60,7 +60,7 @@ class TestActionHandler(unittest.TestCase):
         mock_task = Mock(__name__='mock_task', return_value="task_result")
         mock_on_complete = Mock(__name__='mock_on_complete')
 
-        self.handler.run_background_task(mock_task, on_complete=mock_on_complete)
+        self.handler.network.run_background_task(mock_task, on_complete=mock_on_complete)
 
         # Simulate the worker running
         worker_func = mock_thread.call_args.kwargs['target']
@@ -77,97 +77,99 @@ class TestActionHandler(unittest.TestCase):
 
     @patch('gui.action_handler.messagebox.showwarning')
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_toggle_selected_adapter_no_selection(self, mock_run_task, mock_askyesno, mock_showwarning):
         """Test that toggle does nothing if no adapter is selected."""
         self.get_selected_adapter_name_func.return_value = None
-        self.handler.toggle_selected_adapter('enable')
+        self.handler.network.toggle_adapter('enable')
         mock_run_task.assert_not_called()
         mock_showwarning.assert_called_once()
 
     @patch('gui.action_handler.messagebox.askyesno', return_value=False)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_toggle_selected_adapter_user_cancels(self, mock_run_task, mock_askyesno):
         """Test that toggle is cancelled if user selects 'No'."""
-        self.handler.toggle_selected_adapter('enable')
+        self.handler.network.toggle_adapter('enable')
         mock_run_task.assert_not_called()
         self.mock_context.root.status_var.set.assert_called_with(get_string('status_op_cancelled'))
 
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_toggle_selected_adapter_user_confirms(self, mock_run_task, mock_askyesno):
         """Test that toggle starts a background task if user confirms."""
-        self.handler.toggle_selected_adapter('enable')
+        self.handler.network.toggle_adapter('enable')
         mock_run_task.assert_called_once_with(
-            self.handler._execute_toggle_in_thread, "Wi-Fi", 'enable'
+            self.handler.network._execute_toggle_in_thread, "Wi-Fi", 'enable'
         )
         self.mock_context.root.status_var.set.assert_called()
 
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_confirm_reset_network_stack(self, mock_run_task, mock_askyesno):
         """Test that reset network stack action starts a background task."""
-        self.handler.confirm_reset_network_stack()
+        self.handler.network.confirm_reset_network_stack()
         mock_askyesno.assert_called_once()
-        mock_run_task.assert_called_once_with(self.handler._execute_reset_in_thread)
+        mock_run_task.assert_called_once_with(self.handler.network._execute_reset_in_thread)
         self.mock_context.root.status_var.set.assert_called()
 
     @patch('gui.action_handler.messagebox.askyesno', return_value=False)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_confirm_reset_network_stack_user_cancels(self, mock_run_task, mock_askyesno):
         """Test that reset is cancelled if user selects 'No'."""
-        self.handler.confirm_reset_network_stack()
+        self.handler.network.confirm_reset_network_stack()
         mock_askyesno.assert_called_once()
         mock_run_task.assert_not_called()
         self.mock_context.root.status_var.set.assert_called_with(get_string('status_op_cancelled'))
 
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_flush_dns_cache(self, mock_run_task):
         """Test that flush DNS action starts a background task."""
-        self.handler.flush_dns_cache()
-        mock_run_task.assert_called_once_with(self.handler._execute_flush_dns_in_thread)
+        self.handler.network.flush_dns()
+        mock_run_task.assert_called_once_with(self.handler.network._execute_flush_dns_in_thread)
 
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_release_renew_ip(self, mock_run_task):
         """Test that release and renew action starts a background task."""
-        self.handler.release_renew_ip()
-        mock_run_task.assert_called_once_with(self.handler._execute_release_renew_in_thread)
+        self.handler.network.renew_ip()
+        mock_run_task.assert_called_once_with(self.handler.network._execute_release_renew_in_thread)
 
     @patch('gui.action_handler.app_logic.reset_network_stack')
     def test_execute_reset_in_thread(self, mock_reset):
         """Test the reset network stack worker method."""
-        self.handler._execute_reset_in_thread()
+        self.handler.network._execute_reset_in_thread()
         mock_reset.assert_called_once()
         self.mock_context.task_queue.put.assert_called_once_with({'type': 'reset_stack_success'})
 
     def test_execute_flush_dns_in_thread(self):
         """Test the flush DNS worker method."""
-        self.handler._execute_flush_dns_in_thread()
+        self.handler.network._execute_flush_dns_in_thread()
         self.mock_context.task_queue.put.assert_called_once_with({'type': 'flush_dns_success'})
 
     def test_execute_release_renew_in_thread(self):
         """Test the release/renew IP worker method."""
-        self.handler._execute_release_renew_in_thread()
+        self.handler.network._execute_release_renew_in_thread()
         self.mock_context.task_queue.put.assert_called_once_with({'type': 'release_renew_success'})
 
-    def test_execute_disconnect_wifi_in_thread(self):
+    @patch('gui.action_handler.app_logic.disconnect_wifi')
+    def test_execute_disconnect_wifi_in_thread(self, mock_disconnect):
         """Test the disconnect wifi worker method."""
-        self.handler._execute_disconnect_wifi_in_thread()
+        self.handler.network._execute_disconnect_wifi_in_thread()
+        mock_disconnect.assert_called_once()
         self.mock_context.task_queue.put.assert_called_once_with({'type': 'disconnect_wifi_success'})
 
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     def test_disconnect_current_wifi(self, mock_run_task, mock_askyesno):
         """Test that disconnect Wi-Fi action starts a background task."""
-        self.handler.disconnect_current_wifi()
+        self.handler.network.disconnect_current_wifi()
         mock_askyesno.assert_called_once()
-        mock_run_task.assert_called_once_with(self.handler._execute_disconnect_wifi_in_thread)
+        mock_run_task.assert_called_once_with(self.handler.network._execute_disconnect_wifi_in_thread)
 
     @patch('gui.action_handler.app_logic.disconnect_wifi_and_disable_adapter')
     def test_execute_disconnect_and_disable_in_thread(self, mock_disconnect_and_disable):
         """Test the disconnect and disable worker method."""
         mock_disconnect_and_disable.return_value = iter(["Step 1", "Step 2"])
-        self.handler._execute_disconnect_and_disable_in_thread("Wi-Fi")
+        self.handler.network._execute_disconnect_and_disable_in_thread("Wi-Fi")
         
         expected_calls = [call({'type': 'status_update', 'text': "Step 1"}), call({'type': 'status_update', 'text': "Step 2"})]
         self.mock_context.task_queue.put.assert_has_calls(expected_calls)
@@ -175,20 +177,20 @@ class TestActionHandler(unittest.TestCase):
     @patch('gui.action_handler.NetstatWindow')
     def test_show_netstat_window(self, mock_netstat_window):
         """Test that show_netstat_window creates a NetstatWindow instance."""
-        self.handler.show_netstat_window()
+        self.handler.windows.open_netstat_window()
         mock_netstat_window.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.TracerouteWindow')
     def test_show_traceroute_window(self, mock_traceroute_window):
         """Test that show_traceroute_window creates a TracerouteWindow instance."""
-        self.handler.show_traceroute_window()
+        self.handler.windows.open_traceroute_window()
         mock_traceroute_window.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.app_logic.check_github_cli_auth', return_value=(True, ""))
     @patch('gui.action_handler.PublishDialog') 
     def test_show_publish_dialog(self, mock_publish_dialog, mock_check_auth):
         """Test that show_publish_dialog creates a PublishWindow instance."""
-        self.handler.show_publish_dialog()
+        self.handler.windows.open_publish_dialog()
         mock_publish_dialog.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.app_logic.check_github_cli_auth', return_value=(False, "Auth error"))
@@ -196,12 +198,12 @@ class TestActionHandler(unittest.TestCase):
     @patch('gui.action_handler.PublishDialog')
     def test_show_publish_dialog_auth_fails(self, mock_publish_dialog, mock_showerror, mock_check_auth_app_logic):
         """Test that an error is shown if GitHub auth fails."""
-        self.handler.show_publish_dialog()
+        self.handler.windows.open_publish_dialog()
         mock_check_auth_app_logic.assert_called_once()
         mock_showerror.assert_called_once()
         mock_publish_dialog.assert_not_called()
 
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     @patch('gui.action_handler.app_logic.get_dist_path')
     @patch('tkinter.messagebox.showerror') # Patch messagebox.showerror as it might be called if assets are not found
     def test_publish_release(self, mock_showerror, mock_get_dist_path, mock_run_task):
@@ -219,12 +221,12 @@ class TestActionHandler(unittest.TestCase):
         # Simulate finding an installer file in the 'dist' directory
         mock_dist_path_obj.glob.return_value = iter([Mock(is_file=Mock(return_value=True), __str__=Mock(return_value="dist/NetPilot-setup.exe"))])
 
-        self.handler.publish_release(repo, tag, title, notes)
+        self.handler.github.publish_release(repo, tag, title, notes)
         
         expected_assets = ["dist/NetPilot-setup.exe"]
-        mock_run_task.assert_called_once_with(self.handler._execute_publish_in_thread, repo, tag, title, notes, expected_assets, on_complete=None, on_error=None)
+        mock_run_task.assert_called_once_with(self.handler.github._execute_publish_in_thread, repo, tag, title, notes, expected_assets, on_complete=None, on_error=None)
 
-    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.BaseActionHandler.run_background_task')
     @patch('gui.action_handler.app_logic.get_dist_path')
     @patch('tkinter.messagebox.showerror')
     def test_publish_release_no_assets_found(self, mock_showerror, mock_get_dist_path, mock_run_task):
@@ -239,7 +241,7 @@ class TestActionHandler(unittest.TestCase):
         mock_dist_path_obj.glob.return_value = iter([]) # No installer
         mock_dist_path_obj.__truediv__.return_value = Mock(is_file=Mock(return_value=False)) # No exe
 
-        self.handler.publish_release(repo, tag, title, notes)
+        self.handler.github.publish_release(repo, tag, title, notes)
         mock_showerror.assert_called_once()
         mock_run_task.assert_not_called()
     
@@ -248,7 +250,7 @@ class TestActionHandler(unittest.TestCase):
         """Test that an error during publishing is caught and put to the queue."""
         with self.assertRaises(NetworkManagerError):
             # The error should be re-raised inside the worker and caught by run_background_task
-            self.handler._execute_publish_in_thread("owner/repo", "v1.0", "Title", "Notes")
+            self.handler.github._execute_publish_in_thread("owner/repo", "v1.0", "Title", "Notes")
         
         mock_create_release.assert_called_once()
 
@@ -304,7 +306,7 @@ class TestQueueHandler(unittest.TestCase):
             'error': NetworkManagerError("Cannot disable", code='WIFI_CONNECTED_DISABLE_FAILED')
         }
         self.handler.process_message(message)
-        self.mock_context.action_handler.execute_disconnect_and_disable.assert_called_once_with('Wi-Fi')
+        self.mock_context.action_handler.network.execute_disconnect_and_disable.assert_called_once_with('Wi-Fi')
 
     @patch('gui.queue_handler.messagebox.askyesno', return_value=False)
     def test_handle_toggle_error_wifi_connected_user_declines(self, mock_askyesno):
@@ -316,7 +318,7 @@ class TestQueueHandler(unittest.TestCase):
             'error': NetworkManagerError("Cannot disable", code='WIFI_CONNECTED_DISABLE_FAILED')
         }
         self.handler.process_message(message)
-        self.mock_context.action_handler.execute_disconnect_and_disable.assert_not_called()
+        self.mock_context.action_handler.network.execute_disconnect_and_disable.assert_not_called()
         self.mock_context.root.status_var.set.assert_called()
 
     @patch('gui.queue_handler.messagebox.showerror')

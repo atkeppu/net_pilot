@@ -60,7 +60,7 @@ class NetstatWindow(BaseTaskWindow):
     def refresh_connections(self):
         """Starts a background thread to fetch connection data."""
         self.refresh_button.config(state=tk.DISABLED)
-        self.context.action_handler.fetch_active_connections(on_complete=self._on_refresh_complete)
+        self.context.action_handler.diagnostics.fetch_active_connections(on_complete=self._on_refresh_complete)
 
     def _on_refresh_complete(self):
         """Called when the refresh task is finished, regardless of outcome."""

@@ -16,12 +16,9 @@ from .wifi_window import WifiConnectWindow
 
 logger = logging.getLogger(__name__)
 
-class ActionHandler:
-    """
-    Handles user actions from the UI, typically by running tasks in the background
-    and posting results to the main application queue.
-    """
-    def __init__(self, context, get_selected_adapter_name_func: Callable[[], str | None]):
+class BaseActionHandler:
+    """Base class for action handlers providing common functionality."""
+    def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
         self.context = context
         self.get_selected_adapter_name_func = get_selected_adapter_name_func
         self.app_logic = app_logic
@@ -53,7 +50,12 @@ class ActionHandler:
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
 
-    def toggle_selected_adapter(self, action: str):
+class NetworkActionsHandler(BaseActionHandler):
+    """Handles core network-related actions."""
+    def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
+        super().__init__(context, get_selected_adapter_name_func)
+
+    def toggle_adapter(self, action: str):
         adapter_name = self.get_selected_adapter_name_func()
         if not adapter_name:
             messagebox.showwarning(get_string('netstat_selection_required'), get_string('wifi_select_to_connect'))
@@ -89,14 +91,14 @@ class ActionHandler:
         app_logic.reset_network_stack()
         self.context.task_queue.put({'type': 'reset_stack_success'})
 
-    def flush_dns_cache(self):
+    def flush_dns(self):
         self.run_background_task(self._execute_flush_dns_in_thread)
 
     def _execute_flush_dns_in_thread(self):
         app_logic.flush_dns_cache()
         self.context.task_queue.put({'type': 'flush_dns_success'})
 
-    def release_renew_ip(self):
+    def renew_ip(self):
         self.run_background_task(self._execute_release_renew_in_thread)
 
     def _execute_release_renew_in_thread(self):
@@ -117,6 +119,11 @@ class ActionHandler:
     def _execute_disconnect_and_disable_in_thread(self, adapter_name):
         for status_update in app_logic.disconnect_wifi_and_disable_adapter(adapter_name):
             self.context.task_queue.put({'type': 'status_update', 'text': status_update})
+
+class DiagnosticsActionsHandler(BaseActionHandler):
+    """Handles actions related to diagnostics and data fetching."""
+    def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
+        super().__init__(context, get_selected_adapter_name_func)
 
     def fetch_active_connections(self, on_complete: Callable | None = None):
         """Fetches active network connections in the background."""
@@ -143,16 +150,21 @@ class ActionHandler:
         current_ssid = (app_logic.get_current_wifi_details() or {}).get('ssid')
         self.context.task_queue.put({'type': 'wifi_list_success', 'data': data, 'current_ssid': current_ssid})
 
-    def show_netstat_window(self):
+class UIWindowsHandler(BaseActionHandler):
+    """Handles opening and managing UI windows."""
+    def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
+        super().__init__(context, get_selected_adapter_name_func)
+
+    def open_netstat_window(self):
         NetstatWindow(self.context)
 
-    def show_traceroute_window(self):
+    def open_traceroute_window(self):
         TracerouteWindow(self.context)
 
-    def show_wifi_window(self):
+    def open_wifi_window(self):
         WifiConnectWindow(self.context)
 
-    def show_publish_dialog(self):
+    def open_publish_dialog(self):
         """Opens the publish dialog."""
         self.context.status_var.set(get_string('publish_checking_auth'))
         is_ok, message = self.app_logic.check_github_cli_auth()
@@ -163,6 +175,11 @@ class ActionHandler:
             logger.error("GitHub CLI auth check failed: %s", message)
             self.context.status_var.set(get_string('publish_auth_failed'))
             messagebox.showerror(get_string('publish_auth_failed_title'), message)
+
+class GitHubActionsHandler(BaseActionHandler):
+    """Handles actions related to GitHub integration."""
+    def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
+        super().__init__(context, get_selected_adapter_name_func)
 
     def publish_release(self, repo: str, tag: str, title: str, notes: str, on_complete: Callable | None = None):
         """
@@ -232,3 +249,25 @@ class ActionHandler:
         generate_changelog(version)
         changelog_content = (Path.cwd() / "CHANGELOG.md").read_text(encoding='utf-8')
         self.context.task_queue.put({'type': 'ui_update', 'func': lambda: update_callback(changelog_content)})
+
+class ActionHandler:
+    """
+    Main facade for all UI actions. It instantiates and delegates to specialized
+    sub-handlers for better organization.
+    """
+    def __init__(self, context, get_selected_adapter_name_func: Callable[[], str | None]):
+        self.network = NetworkActionsHandler(context, get_selected_adapter_name_func)
+        self.diagnostics = DiagnosticsActionsHandler(context, get_selected_adapter_name_func)
+        self.windows = UIWindowsHandler(context, get_selected_adapter_name_func)
+        self.github = GitHubActionsHandler(context, get_selected_adapter_name_func)
+
+        # For convenience, expose the generic run_background_task at the top level
+        self.run_background_task = self.network.run_background_task
+
+    # Expose methods from sub-handlers for direct access, e.g., self.action_handler.toggle_adapter()
+    def __getattr__(self, name):
+        if hasattr(self.network, name): return getattr(self.network, name)
+        if hasattr(self.diagnostics, name): return getattr(self.diagnostics, name)
+        if hasattr(self.windows, name): return getattr(self.windows, name)
+        if hasattr(self.github, name): return getattr(self.github, name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")

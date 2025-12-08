@@ -25,13 +25,13 @@ class MenuHandler:
             {
                 "label": get_string('menu_tools'),
                 "items": [
-                    {"label": get_string('menu_reset_stack'), "command": self.action_handler.confirm_reset_network_stack},
-                    {"label": get_string('menu_release_renew'), "command": self.action_handler.release_renew_ip},
-                    {"label": get_string('menu_flush_dns'), "command": self.action_handler.flush_dns_cache},
+                    {"label": get_string('menu_reset_stack'), "command": self.action_handler.network.confirm_reset_network_stack},
+                    {"label": get_string('menu_release_renew'), "command": self.action_handler.network.renew_ip},
+                    {"label": get_string('menu_flush_dns'), "command": self.action_handler.network.flush_dns},
                     {"type": "separator"},
-                    {"label": get_string('menu_connections'), "command": self.action_handler.show_netstat_window},
-                    {"label": get_string('menu_traceroute'), "command": self.action_handler.show_traceroute_window},
-                    {"label": get_string('menu_wifi'), "command": self.action_handler.show_wifi_window},
+                    {"label": get_string('menu_connections'), "command": self.action_handler.windows.open_netstat_window},
+                    {"label": get_string('menu_traceroute'), "command": self.action_handler.windows.open_traceroute_window},
+                    {"label": get_string('menu_wifi'), "command": self.action_handler.windows.open_wifi_window},
                     {"type": "separator"},
                     {
                         "label": get_string('menu_language'),
@@ -41,7 +41,7 @@ class MenuHandler:
                         ]
                     },
                     {"type": "separator"},
-                    {"label": get_string('menu_publish'), "command": self.action_handler.show_publish_dialog},
+                    {"label": get_string('menu_publish'), "command": self.action_handler.windows.open_publish_dialog},
                 ]
             },
             {
@@ -63,7 +63,7 @@ class MenuHandler:
             # This is more robust than relying on the label's text.
             items_to_remove = [
                 item for item in tools_menu_items 
-                if item.get("command") == self.action_handler.show_publish_dialog
+                if item.get("command") == self.action_handler.windows.open_publish_dialog
             ]
             if items_to_remove:
                 # This assumes the separator is right before the publish item.

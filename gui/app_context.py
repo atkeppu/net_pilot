@@ -43,7 +43,7 @@ class AppContext:
         self.main_controller = MainController(task_queue=self.task_queue)
         self.action_handler = ActionHandler(
             context=self,
-            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name
+            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name # type: ignore
         )
         self.queue_handler = QueueHandler(
             context=self,

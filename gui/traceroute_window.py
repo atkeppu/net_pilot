@@ -53,7 +53,7 @@ class TracerouteWindow(BaseTaskWindow):
         self.append_line("-" * 40) # Visual separator
 
         logger.info("Starting traceroute to target: %s", target)
-        self.context.action_handler.run_traceroute(
+        self.context.action_handler.diagnostics.run_traceroute(
             target,
             on_complete=self.on_trace_done
         )

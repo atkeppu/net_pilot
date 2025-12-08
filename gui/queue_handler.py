@@ -73,7 +73,7 @@ class QueueHandler:
             prompt = get_string('toggle_wifi_connected_prompt', adapter=adapter)
             if messagebox.askyesno(get_string('toggle_wifi_connected_title'), prompt, icon='question'):
                 self.status_var.set(get_string('status_disconnect_and_disable'))
-                self.context.action_handler.execute_disconnect_and_disable(adapter)
+                self.context.action_handler.network.execute_disconnect_and_disable(adapter)
             else:
                 self.status_var.set(get_string('status_op_cancelled_by_user'))
         elif "is already" in str(error):

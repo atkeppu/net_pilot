@@ -56,7 +56,7 @@ class AvailableNetworksTab(ttk.Frame):
         self.status_label.config(text=get_string('status_refreshing_list'))
         self.set_button_state('refresh', tk.DISABLED)
         self.set_button_state('connect', tk.DISABLED)
-        self.window.context.action_handler.fetch_wifi_networks(on_complete=self._on_refresh_complete)
+        self.window.context.action_handler.diagnostics.fetch_wifi_networks(on_complete=self._on_refresh_complete)
 
     def _on_refresh_complete(self):
         self.set_button_state('refresh', tk.NORMAL)
