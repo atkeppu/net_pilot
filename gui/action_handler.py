@@ -147,14 +147,21 @@ class ActionHandler:
         WifiConnectWindow(self.context)
 
     def show_publish_dialog(self):
+        """Checks for GitHub CLI auth and then opens the publish dialog, pre-filling the repo name."""
         self.context.root.status_var.set(get_string('publish_checking_auth'))
         is_ok, message = app_logic.check_github_cli_auth()
         if not is_ok:
             self.context.root.status_var.set(get_string('publish_auth_failed'))
             messagebox.showerror(get_string('publish_auth_failed_title'), message)
-        else:
-            self.context.root.status_var.set(get_string('publish_ready'))
-            PublishWindow(self.context)
+            return
+
+        repo_name = app_logic.get_repo_from_git_config()
+        if not repo_name:
+            messagebox.showerror("Repository Not Found", "Could not automatically detect the GitHub repository name. Make sure you have an 'origin' remote configured.")
+            return
+
+        self.context.root.status_var.set(get_string('publish_ready'))
+        PublishWindow(self.context, initial_repo=repo_name)
 
     def publish_release(self, repo: str, tag: str, title: str, notes: str):
         # Find the assets to upload. The build script places them in the 'dist' folder.

@@ -13,10 +13,10 @@ class PublishWindow(tk.Toplevel):
     """
     A dialog window for creating a new GitHub release.
     """
-    def __init__(self, context):
+    def __init__(self, context, initial_repo: str = ""):
         super().__init__(context.root)
         self.context = context
-        self.action_handler = self.context.action_handler
+        self.action_handler = context.action_handler
         self.parent = self.context.root
 
         self.title(get_string('publish_title'))
@@ -25,7 +25,7 @@ class PublishWindow(tk.Toplevel):
 
         self.transient(self.parent) # Keep this window on top of the main app
         self._build_ui()
-        self._populate_defaults()
+        self._populate_defaults(initial_repo)
 
         # Center the window relative to the parent
         self.update_idletasks()
@@ -67,6 +67,10 @@ class PublishWindow(tk.Toplevel):
         notes_label.grid(row=6, column=0, sticky="w", pady=(0, 2))
         self.notes_text = tk.Text(main_frame, height=8, wrap=tk.WORD, relief=tk.SOLID, borderwidth=1)
         self.notes_text.grid(row=7, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
+        
+        notes_hint_label = ttk.Label(main_frame, text="Leave empty to auto-generate from commits.", style="secondary.TLabel")
+        notes_hint_label.grid(row=8, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        main_frame.master.option_add("*TCombobox*Listbox*Font", self.notes_text.cget("font"))
 
         # --- Buttons ---
         button_frame = ttk.Frame(main_frame)
@@ -78,19 +82,17 @@ class PublishWindow(tk.Toplevel):
         self.cancel_button.pack(side=tk.RIGHT)
 
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(7, weight=1) # Give weight to the Text widget
 
-    def _populate_defaults(self):
+    def _populate_defaults(self, initial_repo: str):
         """Fetches and sets default values for the form fields."""
         # Set default version and title
         self.version_var.set(f"v{APP_VERSION}")
         self.title_var.set(f"Release v{APP_VERSION}")
 
-        # Fetch repository from git config
-        repo_name = app_logic.get_repo_from_git_config()
-        if repo_name:
-            self.repo_var.set(repo_name)
-            logger.info("Automatically detected repository: %s", repo_name)
+        if initial_repo:
+            self.repo_var.set(initial_repo)
+            logger.info("Pre-filled repository: %s", initial_repo)
         else:
             logger.warning("Could not detect repository from git config. User must enter it manually.")
 

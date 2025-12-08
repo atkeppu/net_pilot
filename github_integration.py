@@ -75,8 +75,12 @@ def create_github_release(tag: str, title: str, notes: str, repo: str | None = N
             'gh', 'release', 'create', tag,
             '--repo', repo,
             '--title', title,
-            '--notes', notes
         ]
+        if notes:
+            command.extend(['--notes', notes])
+        else:
+            command.append('--generate-notes')
+
         if asset_paths:
             command.extend(asset_paths)
 
