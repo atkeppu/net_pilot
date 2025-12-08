@@ -35,7 +35,7 @@ def increment_version(part_to_increment: str):
         
         new_version = f"{major}.{minor}.{patch}"
         version_path.write_text(new_version, encoding="utf-8")
-        print(f"   ...✅ Versio päivitetty: {current_version} -> {new_version}")
+        print(f"   ...OK: Versio päivitetty: {current_version} -> {new_version}")
 
     except (FileNotFoundError, ValueError) as e:
         raise RuntimeError(
@@ -143,7 +143,7 @@ def run_command(command: list[str], description: str):
             text=True, 
             encoding='utf-8'
         )
-        print("   ...✅ Valmis.")
+        print("   ...OK: Valmis.")
         # Print PyInstaller's final summary, it's often useful.
         if "pyinstaller" in " ".join(command).lower():
              print("\n--- PyInstaller Yhteenveto ---")
@@ -152,12 +152,12 @@ def run_command(command: list[str], description: str):
 
     except FileNotFoundError:
         print(
-            f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Varmista, "
+            f"   ...ERROR: Komentoa '{command[0]}' ei löytynyt. Varmista, "
             f"että se on asennettu ja sen sijainti on lisätty järjestelmän "
             f"PATH-ympäristömuuttujaan.", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"   ...❌ EPÄONNISTUI! Komento '{' '.join(command)}' "
+        print(f"   ...FAIL: Komento '{' '.join(command)}' "
               f"palautti virhekoodin.", file=sys.stderr)
         print("\n--- VIRHE ---", file=sys.stderr)
         # Show the error message, which is often more useful than just the exit code.
@@ -176,15 +176,15 @@ def clean_previous_builds():
             # ignore_errors=True helps prevent crashes from locked files
             # (e.g., by antivirus).
             shutil.rmtree(path_item, ignore_errors=True)
-            print(f"   ...ℹ️ Yritetty poistaa kansio: {path_item}")
+            print(f"   ...INFO: Yritetty poistaa kansio: {path_item}")
     
     for spec_file in project_root.glob('*.spec'):
         spec_file.unlink()
-        print(f"   ...ℹ️ Poistettu tiedosto: {spec_file}")
+        print(f"   ...INFO: Poistettu tiedosto: {spec_file}")
     
     if os.path.exists(VERSION_FILE):
         os.remove(VERSION_FILE)
-        print(f"   ...ℹ️ Poistettu tiedosto: {VERSION_FILE}")
+        print(f"   ...INFO: Poistettu tiedosto: {VERSION_FILE}")
     print("   ...Valmis.")
 
 def run_inno_setup(iscc_path: Path, version: str) -> str | None:
@@ -220,11 +220,11 @@ def run_inno_setup(iscc_path: Path, version: str) -> str | None:
     # We just need to verify it was created.
     if final_installer_path.is_file():
         print(
-            f"   ...✅ Asennusohjelma luotu onnistuneesti: "
+            f"   ...OK: Asennusohjelma luotu onnistuneesti: "
             f"{final_installer_path}")
         return str(final_installer_path)
     else:
-        print(f"   ...❌ VIRHE: Odotettua asennustiedostoa ei löytynyt sijainnista: {final_installer_path}", file=sys.stderr)
+        print(f"   ...ERROR: Odotettua asennustiedostoa ei löytynyt sijainnista: {final_installer_path}", file=sys.stderr)
         return None
 
 def create_git_info_file():
@@ -246,7 +246,7 @@ def create_git_info_file():
             info = {"repository": repo_name}
             (Path.cwd() / "dist" /
              "git_info.json").write_text(json.dumps(info), encoding='utf-8')
-            print(f"   ...✅ Tallennettu repository: {repo_name}")
+            print(f"   ...OK: Tallennettu repository: {repo_name}")
     except (subprocess.CalledProcessError, FileNotFoundError, IndexError):
         print("   ...⚠️ Varoitus: Ei voitu tunnistaa Git-repositorya. Julkaisutoiminto ei välttämättä toimi paketoidussa sovelluksessa.")
 
@@ -285,9 +285,9 @@ def generate_changelog(version: str):
         changelog_path.write_text(
             f"# Muutokset versiossa {version}\n\n{changelog_content}\n",
             encoding='utf-8')
-        print(f"   ...✅ Muutosloki tallennettu tiedostoon: {changelog_path}")
+        print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("   ...❌ VIRHE: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)
+        print("   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)
 
 def format_size(size_bytes: int) -> str:
     """Formats a size in bytes to a human-readable string (KB, MB)."""
@@ -306,7 +306,7 @@ def print_summary(files_to_summarize: list[Path | None]):
         if file_path and file_path.exists():
             size = file_path.stat().st_size  # noqa: E501
             print(
-                f"  ✅ {file_path.name:<35} ({format_size(size):>10}) -> {file_path.parent}")
+                f"  OK: {file_path.name:<35} ({format_size(size):>10}) -> {file_path.parent}")
     print("-------------------------------------------")
 
 def get_pyinstaller_command(version_file: str, upx_dir: Path | None) -> list[str]:
@@ -401,7 +401,7 @@ def main():
         # Final cleanup: Ensure the temporary version file is always removed.
         if os.path.exists(VERSION_FILE):
             os.remove(VERSION_FILE)
-            print(f"-> ℹ️ Siivottu väliaikainen tiedosto: {VERSION_FILE}")
+            print(f"-> INFO: Siivottu väliaikainen tiedosto: {VERSION_FILE}")
 
 if __name__ == "__main__":
     main()
