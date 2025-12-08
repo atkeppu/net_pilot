@@ -10,6 +10,10 @@ jobs:
   build-and-release:
     # Run on Windows, as the build process is Windows-specific
     runs-on: windows-latest
+    # Add permissions for the GITHUB_TOKEN to allow creating a release
+    permissions:
+      # This is required to create a release and upload assets.
+      contents: write
 
     steps:
       # Step 1: Check out the repository code at the specific tag

@@ -1,3 +1,3 @@
-# Muutokset versiossa 1.4.2
+# Muutokset versiossa 1.4.3
 
-- chore: Bump version to 1.4.1 (5b7458e)
+- Ei havaittuja muutoksia edellisen version jälkeen.
