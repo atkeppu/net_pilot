@@ -151,14 +151,9 @@ class PollingManager:
             try:
                 # --- Task 2: Periodic heavy diagnostics ---
                 logger.info("Starting heavy poll task cycle...")
-
-                def fetch_diagnostics():
-                    logger.debug("Fetching network diagnostics...")
-                    diag_data = get_network_diagnostics(external_target=self.context.get_ping_target())
-                    self.task_queue.put({'type': 'diagnostics_update', 'data': diag_data})
-                    logger.debug("...diagnostics fetched.")
-
-                threading.Thread(target=fetch_diagnostics, daemon=True).start()
+                
+                # Run diagnostics in a separate thread to not block this loop
+                threading.Thread(target=self._fetch_diagnostics_and_queue, daemon=True).start()
                 
                 # Also fetch light tasks here to keep them in sync
                 wifi_data = get_current_wifi_details()
@@ -167,3 +162,10 @@ class PollingManager:
                 logger.error("Main polling loop encountered an error.", exc_info=True)
             finally:
                 stop_event.wait(self.diagnostics_interval)
+
+    def _fetch_diagnostics_and_queue(self):
+        """Fetches network diagnostics and puts the result into the task queue."""
+        logger.debug("Fetching network diagnostics...")
+        diag_data = get_network_diagnostics(external_target=self.context.get_ping_target())
+        self.task_queue.put({'type': 'diagnostics_update', 'data': diag_data})
+        logger.debug("...diagnostics fetched.")

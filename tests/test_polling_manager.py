@@ -120,34 +120,31 @@ class TestPollingManagerLoop(unittest.TestCase):
 
     @patch('gui.polling_manager.time.time')
     @patch('gui.polling_manager.get_current_wifi_details')
-    @patch('gui.polling_manager.get_network_diagnostics')
-    def test_first_poll_runs_all_tasks(self, mock_get_diag, mock_get_wifi, mock_time):
+    @patch('gui.polling_manager.PollingManager._fetch_diagnostics_and_queue')
+    def test_first_poll_runs_all_tasks(self, mock_fetch_diag, mock_get_wifi, mock_time):
         """Test that the very first poll runs both heavy and light tasks."""
         # Arrange
         mock_time.return_value = 1000.0
-        mock_get_diag.return_value = {'Public IP': '1.2.3.4'}
         mock_get_wifi.return_value = {'ssid': 'TestNet'}
-        
-        # Run the loop in a thread and use an event to stop it after one iteration.
+
+        # Act: Run the loop once. We set is_running to True and then mock the
+        # stop_event.wait() call to immediately set the event, ensuring the
+        # loop runs exactly once.
         stop_event = threading.Event()
-        self.polling_manager.is_running = True # Manually set for test
-        poll_thread = threading.Thread(target=self.polling_manager._poll_loop, args=(stop_event,))
-        poll_thread.start()
-        time.sleep(0.1) # Give the loop time to run once
-        stop_event.set() # Signal the loop to stop
-        poll_thread.join(timeout=1) # Wait for the thread to finish
+        self.polling_manager.is_running = True
+        with patch.object(stop_event, 'wait', side_effect=lambda timeout: stop_event.set()):
+            self.polling_manager._poll_loop(stop_event)
 
         # Assert
         # Check that all data fetching functions were called
-        mock_get_diag.assert_called_once()
+        mock_fetch_diag.assert_called_once()
         mock_get_wifi.assert_called_once()
 
         # Check that all messages were put into the queue
         expected_calls = [
             call.put({'type': 'wifi_status_update', 'data': {'ssid': 'TestNet'}}),
-            call.put({'type': 'diagnostics_update', 'data': {'Public IP': '1.2.3.4'}})
         ]
-        self.mock_context.task_queue.assert_has_calls(expected_calls, any_order=True)
+        self.mock_context.task_queue.assert_has_calls(expected_calls)
 
     @patch('gui.polling_manager.time.time')
     @patch('gui.polling_manager.get_current_wifi_details')

@@ -133,6 +133,28 @@ class TestActionHandler(unittest.TestCase):
         self.handler.release_renew_ip()
         mock_run_task.assert_called_once_with(self.handler._execute_release_renew_in_thread)
 
+    @patch('gui.action_handler.app_logic.reset_network_stack')
+    def test_execute_reset_in_thread(self, mock_reset):
+        """Test the reset network stack worker method."""
+        self.handler._execute_reset_in_thread()
+        mock_reset.assert_called_once()
+        self.mock_context.task_queue.put.assert_called_once_with({'type': 'reset_stack_success'})
+
+    def test_execute_flush_dns_in_thread(self):
+        """Test the flush DNS worker method."""
+        self.handler._execute_flush_dns_in_thread()
+        self.mock_context.task_queue.put.assert_called_once_with({'type': 'flush_dns_success'})
+
+    def test_execute_release_renew_in_thread(self):
+        """Test the release/renew IP worker method."""
+        self.handler._execute_release_renew_in_thread()
+        self.mock_context.task_queue.put.assert_called_once_with({'type': 'release_renew_success'})
+
+    def test_execute_disconnect_wifi_in_thread(self):
+        """Test the disconnect wifi worker method."""
+        self.handler._execute_disconnect_wifi_in_thread()
+        self.mock_context.task_queue.put.assert_called_once_with({'type': 'disconnect_wifi_success'})
+
     @patch('gui.action_handler.messagebox.askyesno', return_value=True)
     @patch('gui.action_handler.ActionHandler.run_background_task')
     def test_disconnect_current_wifi(self, mock_run_task, mock_askyesno):
@@ -201,6 +223,25 @@ class TestActionHandler(unittest.TestCase):
         
         expected_assets = ["dist/NetPilot-setup.exe"]
         mock_run_task.assert_called_once_with(self.handler._execute_publish_in_thread, repo, tag, title, notes, expected_assets, on_complete=None, on_error=None)
+
+    @patch('gui.action_handler.ActionHandler.run_background_task')
+    @patch('gui.action_handler.app_logic.get_dist_path')
+    @patch('tkinter.messagebox.showerror')
+    def test_publish_release_no_assets_found(self, mock_showerror, mock_get_dist_path, mock_run_task):
+        """Test that an error is shown if no release assets are found."""
+        repo = "owner/repo"
+        tag = "v1.0"
+        title = "Title"
+        notes = "Notes"
+
+        mock_dist_path_obj = MagicMock()
+        mock_get_dist_path.return_value = mock_dist_path_obj
+        mock_dist_path_obj.glob.return_value = iter([]) # No installer
+        mock_dist_path_obj.__truediv__.return_value = Mock(is_file=Mock(return_value=False)) # No exe
+
+        self.handler.publish_release(repo, tag, title, notes)
+        mock_showerror.assert_called_once()
+        mock_run_task.assert_not_called()
     
     @patch('app_logic.create_github_release', side_effect=NetworkManagerError("API Error"))
     def test_execute_publish_in_thread_failure(self, mock_create_release):

@@ -43,3 +43,26 @@ class TestAppContext(unittest.TestCase):
 
         self.context.unregister_window(mock_window)
         self.assertNotIn("TestWindow", self.context.open_windows)
+
+    def test_get_ping_target(self):
+        """Test that get_ping_target returns the correct value."""
+        # Case 1: diagnostics_frame is not initialized (should return default)
+        self.assertEqual(self.context.get_ping_target(), "8.8.8.8")
+
+        # Case 2: diagnostics_frame is initialized and returns a value
+        self.context.diagnostics_frame = Mock()
+        self.context.diagnostics_frame.get_ping_target.return_value = "1.1.1.1"
+        self.assertEqual(self.context.get_ping_target(), "1.1.1.1")
+
+    def test_get_app_version(self):
+        """Test that get_app_version returns a string."""
+        # This test mainly ensures the method is called and doesn't crash.
+        # We can patch the constant it reads to be more specific if needed.
+        with patch('gui.app_context.APP_VERSION', '1.2.3-test'):
+            self.assertEqual(self.context.get_app_version(), '1.2.3-test')
+
+    def test_unregister_non_existent_window(self):
+        """Test that unregistering a window that isn't registered doesn't raise an error."""
+        mock_window = Mock(__class__=Mock(__name__="NonExistentWindow"))
+        # This should execute without raising an exception.
+        self.context.unregister_window(mock_window)
