@@ -1,6 +1,7 @@
 import os
-import fnmatch
+import fnmatch # type: ignore
 from pathlib import Path
+from typing import List
 import json
 
 # --- Asetukset ---
@@ -15,7 +16,7 @@ VSCODE_SETTINGS_FILE = ".vscode/settings.json"
 
 def load_vscode_ignore_patterns(settings_path: Path) -> list[str]:
     """Lukee 'files.exclude' -säännöt VS Coden settings.json-tiedostosta."""
-    patterns = []
+    patterns: List[str] = []
     if not settings_path.is_file():
         return patterns
 

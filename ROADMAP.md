@@ -38,3 +38,11 @@ Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää s
 *   **Tila:** Suunnitteilla.
 *   **Tehtävä:** Lisätä kontekstitietoa lokiviesteihin, kuten funkti- ja moduulinimiä. Harkita jäsennellyn lokituksen (esim. JSON-formaatti) käyttöönottoa, mikä helpottaisi lokien automaattista analysointia tulevaisuudessa.
 *   **Miksi:** Nopeuttaa virheiden diagnosointia ja antaa paremman kuvan sovelluksen toiminnasta ajon aikana.
+
+### 5. Käyttöliittymän modernisointi
+*   **Tila:** Suunnitteilla.
+*   **Tehtävä:** Tutkia ja ottaa käyttöön modernimpi ulkoasu sovellukselle. Tämä voi sisältää:
+    *   `ttkthemes`-kirjaston tai `Sun Valley TTK Theme`:n hyödyntämisen nykyisen Tkinter-käyttöliittymän ulkoasun parantamiseksi.
+    *   Käyttöliittymän elementtien ja asettelun uudelleensuunnittelun käyttäjäkokemuksen parantamiseksi.
+    *   Pitkällä tähtäimellä siirtymisen harkitsemista toiseen UI-kirjastoon (esim. PyQt/PySide).
+*   **Miksi:** Parantaa sovelluksen visuaalista ilmettä ja käytettävyyttä, tehden siitä miellyttävämmän ja intuitiivisemman loppukäyttäjälle.
