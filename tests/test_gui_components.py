@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import Mock, MagicMock, patch, call
+import tkinter as tk
 
 import gui
 from gui.action_handler import ActionHandler
@@ -253,6 +254,53 @@ class TestActionHandler(unittest.TestCase):
             self.handler.github._execute_publish_in_thread("owner/repo", "v1.0", "Title", "Notes")
         
         mock_create_release.assert_called_once()
+
+class TestAdapterDetailsFrame(unittest.TestCase):
+    """Tests for the AdapterDetailsFrame UI component."""
+
+    def setUp(self):
+        # A root window is required for Tkinter widgets
+        self.root = tk.Tk()
+        # Prevent the window from appearing during tests
+        self.root.withdraw()
+        
+        self.mock_on_connect = Mock()
+        self.mock_on_disconnect = Mock()
+        self.mock_on_status_update = Mock()
+        
+        self.frame = AdapterDetailsFrame(
+            self.root,
+            on_connect_callback=self.mock_on_connect,
+            on_disconnect_callback=self.mock_on_disconnect,
+            on_status_update_callback=self.mock_on_status_update
+        )
+
+    def tearDown(self):
+        self.root.destroy()
+
+    def test_clear_resets_all_fields(self):
+        """Test that the clear method resets all labels and buttons."""
+        # First, set some values
+        self.frame.details_labels['details_description'].config(text="Some Description")
+        self.frame.connect_button.config(state=tk.NORMAL)
+        
+        # Act
+        self.frame.clear()
+        
+        # Assert
+        self.assertEqual(self.frame.details_labels['details_description'].cget('text'), "-")
+        self.assertEqual(str(self.frame.connect_button.cget('state')), tk.DISABLED)
+        self.assertEqual(str(self.frame.disconnect_button.cget('state')), tk.DISABLED)
+
+    def test_update_button_states(self):
+        """Test that button states are updated correctly based on adapter admin_state."""
+        self.frame.update_button_states('Enabled')
+        self.assertEqual(str(self.frame.connect_button.cget('state')), tk.DISABLED)
+        self.assertEqual(str(self.frame.disconnect_button.cget('state')), tk.NORMAL)
+
+        self.frame.update_button_states('Disabled')
+        self.assertEqual(str(self.frame.connect_button.cget('state')), tk.NORMAL)
+        self.assertEqual(str(self.frame.disconnect_button.cget('state')), tk.DISABLED)
 
 class TestQueueHandler(unittest.TestCase):
     """Tests for the QueueHandler class."""
