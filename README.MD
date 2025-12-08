@@ -49,8 +49,8 @@
 
 1.  Kloonaa tämä repositorio: `git clone https://github.com/atkeppu/NetPilot.git`
 2.  Siirry projektihakemistoon: `cd NetPilot`
-3.  Käynnistä pääskripti ylläpitäjän oikeuksin: `python main.py`
-    *   Sovelluksella ei ole ulkoisia ajonaikaisia riippuvuuksia.
+3.  Asenna ajonaikaiset riippuvuudet: `pip install -r requirements.txt`
+4.  Käynnistä pääskripti ylläpitäjän oikeuksin: `python main.py`
 
 ## Vaatimukset
 

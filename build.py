@@ -11,7 +11,7 @@ APP_NAME = "NetPilot"
 ENTRY_POINT = "main.py"
 ICON_FILE = "icon.ico"
 MANIFEST_FILE = "admin.manifest"
-VERSION_FILE = "version.txt"
+ERSION_FILE = "version.txt"
 
 def get_app_version() -> str:
     """Reads the app version from the VERSION file."""
@@ -163,6 +163,8 @@ def main():
             "--windowed",       # Estää konsoli-ikkunan näkymisen GUI-sovelluksessa
             f"--icon={ICON_FILE}",
             f"--manifest={MANIFEST_FILE}",
+            # Varmistetaan, että dynaamisesti ladatut kirjastot tulevat mukaan.
+            "--hidden-import=requests",
             # Lisätään PowerShell-skriptit ja ikoni mukaan pakettiin.
             # Muoto on "lähde;kohde", jossa '.' on juurihakemisto paketissa.
             "--add-data", f"logic{os.pathsep}logic",
