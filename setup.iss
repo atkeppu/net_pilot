@@ -19,20 +19,20 @@ DefaultGroupName=NetPilot
 
 ; Asennusohjelman ulkoasu ja toiminta
 OutputBaseFilename=NetPilot-{#AppVersion}-setup
+OutputDir=dist
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-PrivilegesRequired=admin ; Sovellus vaatii admin-oikeudet
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\NetPilot.exe
 
 ; Pyydä käyttäjää hyväksymään lisenssi (jos sellainen on)
-; LicenseFile=LICENSE.txt
+LicenseFile=LICENSE.md
 
 ; Määritellään tuetut kielet asennusohjelmalle
 [Languages]
-Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "fi"; MessagesFile: "compiler:Languages\Finnish.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
 
 ; Tehtävät, joita käyttäjä voi valita asennuksen aikana
 [Tasks]
@@ -45,7 +45,7 @@ Source: "dist\NetPilot.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Ikonitiedosto, jota sovellus voi käyttää
 Source: "icon.ico"; DestDir: "{app}"
 ; Voit lisätä muita tiedostoja, kuten README tai LICENSE
-; Source: "README.md"; DestDir: "{app}"; Flags: isreadme
+Source: "LICENSE.md"; DestDir: "{app}"; Flags: isreadme
 
 ; Pikakuvakkeet, jotka luodaan
 [Icons]
@@ -71,21 +71,3 @@ Type: dirifempty; Name: "{userappdata}\NetPilot\logs"
 
 ; Poista sovelluksen juurikansio, jos se on tyhjä
 Type: dirifempty; Name: "{userappdata}\NetPilot"
-
-; Inno Setupin Pascal-skriptausosio
-[Code]
-
-// Tämä funktio tarkistaa, onko Inno Setupin suomen kielen tiedosto olemassa.
-// Jos ei ole, se antaa varoituksen, mutta jatkaa englanniksi.
-function InitializeSetup(): Boolean;
-var
-  Lang: String;
-begin
-  Lang := GetCurrentLanguage();
-  if (Lang = 'fi') and (not FileExists(ExpandConstant('{compiler:Languages\Finnish.isl}'))) then
-  begin
-    MsgBox('Suomenkielistä käännöstiedostoa (Finnish.isl) ei löytynyt Inno Setupin asennuskansiosta. Asennusohjelma jatkuu englanniksi.', mbWarning, MB_OK);
-  end;
-  Result := True;
-end;
-

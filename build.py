@@ -11,7 +11,7 @@ APP_NAME = "NetPilot"
 ENTRY_POINT = "main.py"
 ICON_FILE = "icon.ico"
 MANIFEST_FILE = "admin.manifest"
-ERSION_FILE = "version.txt"
+VERSION_FILE = "version.txt"
 
 def get_app_version() -> str:
     """Reads the app version from the VERSION file."""

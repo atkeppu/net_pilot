@@ -50,7 +50,7 @@ def get_repo_from_git_config() -> str | None:
     except NetworkManagerError:
         return None
 
-def create_github_release(tag: str, title: str, notes: str, repo: str | None = None, asset_path: str | None = None) -> str:
+def create_github_release(tag: str, title: str, notes: str, repo: str | None = None, asset_paths: list[str] | None = None) -> str | None:
     """
     Creates a new release on GitHub and optionally uploads an asset.
 
@@ -60,10 +60,10 @@ def create_github_release(tag: str, title: str, notes: str, repo: str | None = N
         notes: The release notes.
         repo: Optional. The GitHub repository in "owner/repo" format. If not provided,
               it will be detected from the local Git configuration.
-        asset_path: Optional local path to the file to be uploaded as a release asset.
+        asset_paths: Optional list of local paths to files to be uploaded as release assets.
 
     Returns:
-        The URL of the new release.
+        The URL of the new release, or None if an error occurs.
     """
     try:
         # Build the command as a list of arguments. shell=False handles quoting safely.
@@ -77,8 +77,8 @@ def create_github_release(tag: str, title: str, notes: str, repo: str | None = N
             '--title', title,
             '--notes', notes
         ]
-        if asset_path:
-            command.append(asset_path)
+        if asset_paths:
+            command.extend(asset_paths)
 
         result = run_system_command(command, f"Failed to create GitHub release for tag {tag}")
         return result.stdout.decode('utf-8').strip()

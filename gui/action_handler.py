@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 import threading
 import logging
+from pathlib import Path
 from typing import Callable
 import app_logic
 from localization import get_string
@@ -155,9 +156,30 @@ class ActionHandler:
             self.context.root.status_var.set(get_string('publish_ready'))
             PublishWindow(self.context)
 
-    def publish_release(self, repo, tag, title, notes):
-        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes)
+    def publish_release(self, repo: str, tag: str, title: str, notes: str):
+        # Find the assets to upload. The build script places them in the 'dist' folder.
+        version = tag.lstrip('v')
+        dist_path = Path.cwd() / "dist"
+        
+        asset_filenames = [
+            f"NetPilot-{version}-setup.exe", # The installer
+            "NetPilot.exe"                   # The standalone executable
+        ]
+        
+        asset_paths = [dist_path / filename for filename in asset_filenames]
+        found_assets = [str(p) for p in asset_paths if p.is_file()]
 
-    def _execute_publish_in_thread(self, repo, tag, title, notes):
-        release_url = app_logic.create_github_release(tag, title, notes, repo)
+        if not found_assets:
+            error_msg = (
+                f"Could not find any release files to upload in the 'dist' folder.\n\n"
+                "Please run 'python build.py' first to create the executable and the installer."
+            )
+            messagebox.showerror("Asset Not Found", error_msg)
+            self.context.root.status_var.set("Publish cancelled: Asset not found.")
+            return
+
+        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, found_assets)
+
+    def _execute_publish_in_thread(self, repo: str, tag: str, title: str, notes: str, asset_paths: list[str] | None = None):
+        release_url = app_logic.create_github_release(tag, title, notes, repo, asset_paths)
         self.context.task_queue.put({'type': 'status_update', 'text': get_string('publish_success', tag=tag)})
