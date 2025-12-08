@@ -1,5 +1,6 @@
 # NetPilot
 
+[![CI Status](https://github.com/atkeppu/NetPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/atkeppu/NetPilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **NetPilot** on monipuolinen verkonhallinta- ja diagnostiikkatyökalu Windows-käyttöjärjestelmille. Se tarjoaa graafisen käyttöliittymän yleisimpiin verkon vianmääritys- ja hallintatehtäviin, jotka vaativat normaalisti komentorivin käyttöä.
@@ -12,6 +13,7 @@
 - [Asennus ja käyttö](#asennus-ja-käyttö)
 - [Vaatimukset](#vaatimukset)
 - [Kehitys](#kehitys)
+- [Jatkuva Integraatio (CI)](#jatkuva-integraatio-ci)
 - [Kehitysprosessi ja Tekoälyn Rooli](#kehitysprosessi-ja-tekoälyn-rooli)
 - [Osallistuminen (Contributing)](#osallistuminen-contributing)
 - [Lisenssi](#lisenssi)
