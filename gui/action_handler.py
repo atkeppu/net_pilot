@@ -54,9 +54,16 @@ class ActionHandler:
             messagebox.showwarning(get_string('netstat_selection_required'), get_string('wifi_select_to_connect'))
             return
 
-        prompt = f"Are you sure you want to {action} the adapter '{adapter_name}'?"
-        if messagebox.askyesno(f"Confirm {action.capitalize()}", prompt):
-            status_key = 'status_enable_attempt' if action == 'enable' else 'status_disable_attempt'
+        is_enable = action == 'enable'
+        
+        title_key = 'toggle_confirm_enable_title' if is_enable else 'toggle_confirm_disable_title'
+        prompt_key = 'toggle_confirm_enable_prompt' if is_enable else 'toggle_confirm_disable_prompt'
+        status_key = 'status_enable_attempt' if is_enable else 'status_disable_attempt'
+
+        title = get_string(title_key)
+        prompt = get_string(prompt_key, adapter_name=adapter_name)
+
+        if messagebox.askyesno(title, prompt):
             self.context.root.status_var.set(get_string(status_key, adapter_name=adapter_name))
             self.run_background_task(self._execute_toggle_in_thread, adapter_name, action)
         else:
