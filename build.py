@@ -268,7 +268,7 @@ def generate_changelog(version: str):
         # No tags found, this is likely the first release. Log all commits.
         print(
             "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
-            "kaikista commiteista.")
+            "kaikista commiteista. (Tämä on normaalia ensimmäisellä julkaisulla)")
         commit_range = "HEAD"
 
     try:

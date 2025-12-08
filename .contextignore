@@ -1,0 +1,69 @@
+# Tämä tiedosto määrittelee kansiot ja tiedostot, jotka create_context.py
+# jättää huomiotta kontekstitiedostoa luodessa.
+# Syntaksi on sama kuin .gitignore-tiedostossa.
+
+# Itse skripti ja sen tuotos
+create_context.py
+project_context.txt
+.contextignore
+
+# Git-kansiot ja -tiedostot
+.git/
+.github/
+.gitignore
+
+# Pythonin virtuaaliympäristöt ja välimuistit
+venv/
+.venv/
+__pycache__/
+build/
+dist/
+*.pyc
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# PyInstaller-tiedostot
+*.spec
+
+# Build-prosessin tiedostot
+admin.manifest
+version.txt
+
+# Lokitiedostot ja riippuvuuksien lukitustiedostot
+*.log
+*.log.*
+poetry.lock
+Pipfile.lock
+
+# Testaus- ja kattavuusraportit
+.coverage
+.coverage.*
+htmlcov/
+
+# JavaScript / Node.js -riippuvuudet
+node_modules/
+.trunk/
+
+# Binääritiedostot
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.zip
+*.tar.gz
+*.rar
+
+# Editori- ja IDE-kohtaiset asetukset
+.idea/
+.vscode/
+
+# Käyttöjärjestelmäkohtaiset tiedostot
+.DS_Store
+Thumbs.db
+
+# Muut
+CHANGELOG.md

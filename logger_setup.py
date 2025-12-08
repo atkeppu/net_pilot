@@ -80,7 +80,8 @@ def setup_logging() -> Path | None:
     """
     log_file_path: Path = get_log_file_path()
     log_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        # Lisätään funktion nimi ja rivinumero lokiviesteihin paremman kontekstin saamiseksi.
+        '%(asctime)s - %(levelname)-8s - [%(name)s:%(funcName)s:%(lineno)d] - %(message)s'
     )
     root_logger = logging.getLogger()
     # Set level from environment variable, defaulting to INFO.

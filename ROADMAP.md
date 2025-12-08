@@ -1,30 +1,40 @@
 # Projektin Roadmap
 
-Tämä on päivitetty roadmap, joka sisältää jäljellä olevat priorisoidut parannusehdotukset projektille.
+Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää sekä jo toteutetut virstanpylväät että tulevaisuuden tavoitteet.
 
-## Seuraavat askeleet
+## Toteutetut ominaisuudet
 
-### 1. Yksikkötestien laajentaminen
-Vaikka testausympäristö on pystyssä, itse testien kattavuutta tulee parantaa.
+✅ **Jatkuvan integraation (CI) käyttöönotto**
+*   **Tila:** Valmis.
+*   **Toteutus:** GitHub Actions -työnkulku (`.github/workflows/ci.yml`) on luotu. Se suorittaa automaattisesti `mypy`-tyyppitarkistuksen ja `pytest`-yksikkötestit jokaisen `push`- ja `pull_request`-tapahtuman yhteydessä.
 
-*   **Tehtävä:** Kirjoita lisää yksikkötestejä `logic`-kansion funktioille. Tavoitteena on nostaa testikattavuus (`coverage`) yli 80 %:iin.
-*   **Miksi:** Varmistaa koodin vakauden ja helpottaa tulevia muutoksia.
+✅ **Asennuspaketin luominen**
+*   **Tila:** Valmis.
+*   **Toteutus:** `build.py`-skripti tukee Inno Setup -työkalua, jolla luodaan ammattimainen asennusohjelma (`.exe`). Tämä mahdollistaa pikakuvakkeiden luomisen ja sovelluksen helpon poistamisen.
 
-### 2. Jatkuvan integraation (CI) käyttöönotto
-Automatisoidaan koodin laadun tarkistus ja testien ajaminen.
+✅ **Resurssien hallinta**
+*   **Tila:** Valmis.
+*   **Toteutus:** `build.py` lisää tarvittavat resurssit (kuten `icon.ico`) PyInstaller-pakettiin, mikä varmistaa niiden toimivuuden jaettavassa sovelluksessa.
 
-*   **Tehtävä:** Luo GitHub Actions -työnkulku (`.github/workflows/ci.yml`), joka suorittaa automaattisesti:
-    *   Staattisen analyysin (esim. `flake8`, `mypy`).
-    *   Yksikkötestit (`pytest`).
-    *   Testikattavuusraportin generoinnin.
-*   **Miksi:** Varmistaa, että uudet muutokset eivät riko olemassa olevaa toiminnallisuutta ja ylläpitävät koodin laatustandardeja.
+## Tulevaisuuden kehityskohteet
 
-### 3. Asennuspaketin luominen
-Vaikka `.exe`-tiedosto on kätevä, ammattimainen asennusohjelma parantaa käyttökokemusta.
+### 1. Testikattavuuden parantaminen
+*   **Tila:** Kesken.
+*   **Tehtävä:** Kirjoittaa lisää yksikkötestejä erityisesti `logic`- ja `gui`-kerrosten toiminnoille.
+*   **Tavoite:** Nostaa testikattavuus (`coverage`) nykyisestä (60 %) yli 80 %:iin.
+*   **Miksi:** Varmistaa koodin vakauden, ehkäisee regressioita ja helpottaa uusien ominaisuuksien lisäämistä turvallisesti.
 
-*   **Tehtävä:** Tutki ja ota käyttöön työkalu (esim. Inno Setup tai WiX Toolset) asennuspaketin luomiseksi `build.py`:n tuottamasta `.exe`-tiedostosta.
-*   **Miksi:** Mahdollistaa mm. Käynnistä-valikon pikakuvakkeiden ja ohjelman helpon poistamisen.
+### 2. Koodin refaktorointi ja laadun parantaminen
+*   **Tila:** Suunnitteilla.
+*   **Tehtävä:** Käydä läpi sovelluksen koodikanta ja soveltaa SOLID-periaatteita. Esimerkiksi `gui/main_window.py`-tiedoston `ActionHandler`-luokka on jo jaettu pienempiin osiin, mutta vastaavia parannuksia voidaan tehdä muuallakin.
+*   **Miksi:** Parantaa koodin luettavuutta, ylläpidettävyyttä ja testattavuutta.
 
-### 4. Resurssien hallinnan parantaminen
-*   **Tehtävä:** Luo yleiskäyttöinen `resource_path`-funktio, joka osaa hakea resurssitiedostoja (kuten kuvakkeet) sekä lähdekoodista ajettaessa että PyInstallerin luomasta paketista (`sys._MEIPASS`).
-*   **Miksi:** Tekee sovelluksesta robustimman ja helpottaa uusien resurssien lisäämistä tulevaisuudessa.
+### 3. Dokumentaation viimeistely
+*   **Tila:** Suunnitteilla.
+*   **Tehtävä:** Kirjoittaa kattavampi API-dokumentaatio koodin sisälle (docstringit) ja varmistaa, että `README.md` ja `ARCHITECTURE.md` ovat täysin ajan tasalla.
+*   **Miksi:** Helpottaa uusien kehittäjien perehtymistä projektiin ja selkeyttää olemassa olevia toiminnallisuuksia.
+
+### 4. Lokituksen parantaminen
+*   **Tila:** Suunnitteilla.
+*   **Tehtävä:** Lisätä kontekstitietoa lokiviesteihin, kuten funkti- ja moduulinimiä. Harkita jäsennellyn lokituksen (esim. JSON-formaatti) käyttöönottoa, mikä helpottaisi lokien automaattista analysointia tulevaisuudessa.
+*   **Miksi:** Nopeuttaa virheiden diagnosointia ja antaa paremman kuvan sovelluksen toiminnasta ajon aikana.

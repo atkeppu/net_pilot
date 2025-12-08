@@ -13,6 +13,8 @@
 - [Asennus ja käyttö](#asennus-ja-käyttö)
 - [Vaatimukset](#vaatimukset)
 - [Kehitys](#kehitys)
+- [Projektin Roadmap](#projektin-roadmap)
+- [Jatkuva Toimitus (CD)](#jatkuva-toimitus-cd)
 - [Jatkuva Integraatio (CI)](#jatkuva-integraatio-ci)
 - [Kehitysprosessi ja Tekoälyn Rooli](#kehitysprosessi-ja-tekoälyn-rooli)
 - [Osallistuminen (Contributing)](#osallistuminen-contributing)
@@ -82,12 +84,8 @@ Tämä osio on tarkoitettu kehittäjille, jotka haluavat muokata koodia tai rake
 
 ### Koodin laadun tarkistaminen
 
-Projekti käyttää `flake8`- ja `mypy`-työkaluja koodin laadun ja tyyppiturvallisuuden varmistamiseksi. Voit suorittaa tarkistukset manuaalisesti komennolla:
+Projekti käyttää `mypy`-työkalua koodin tyyppiturvallisuuden varmistamiseksi. Voit suorittaa tarkistuksen manuaalisesti komennolla:
 
-*   **Tarkista koodin tyyli ja yleiset virheet `flake8`:lla:**
-    ```bash
-    flake8 .
-    ```
 *   **Suorita staattinen tyyppitarkistus `mypy`:llä:**
     ```bash
     mypy .
@@ -151,7 +149,11 @@ Sovelluksen julkaisuikkuna on suunniteltu joustavaksi:
 
 ### Kehittäjän aputyökalut
 
-`git_helper.py`-skripti on apuväline, joka automatisoi uuden GitHub-projektin luomisen ja olemassa olevan koodin lähettämisen sinne. Tämä on hyödyllistä, kun aloitat uuden projektin paikallisesti ja haluat julkaista sen GitHubiin vaivattomasti.
+Projekti sisältää apuskriptejä, jotka helpottavat kehitystyötä.
+
+#### `git_helper.py`
+
+Tämä skripti automatisoi uuden GitHub-projektin luomisen ja olemassa olevan koodin lähettämisen sinne. Tämä on hyödyllistä, kun aloitat uuden projektin paikallisesti ja haluat julkaista sen GitHubiin vaivattomasti.
 
 **Esimerkkikäyttö:**
 
@@ -159,6 +161,44 @@ Sovelluksen julkaisuikkuna on suunniteltu joustavaksi:
 # Luo uusi julkinen projekti nimeltä "NetPilot" GitHubiin
 python git_helper.py NetPilot -d "Projektin kuvaus tähän"
 ```
+
+#### `create_context.py`
+
+Tämä skripti kerää kaikki projektin relevantit lähdekooditiedostot yhteen isoon tekstitiedostoon (`project_context.txt`). Tämä on erittäin kätevää, kun haluat antaa koko projektin kontekstin kerralla esimerkiksi tekoälyavustajalle (kuten Gemini).
+
+Skripti lukee automaattisesti ohitettavat tiedostot ja kansiot kahdesta paikasta:
+1.  Projektin juureen luodusta `.contextignore`-tiedostosta.
+2.  VS Coden asetuksista (`.vscode/settings.json`), jos sellainen on olemassa.
+
+**Käyttö:**
+
+```bash
+# Suorita skripti projektin juurihakemistossa
+python create_context.py
+```
+
+## Jatkuva Toimitus (CD)
+
+Projekti ei tällä hetkellä hyödynnä täysin automatisoitua jatkuvan toimituksen (Continuous Deployment) putkea, jossa jokainen muutos päähaaraan johtaisi automaattisesti uuteen julkaisuun. Sen sijaan käytössä on puoliautomaattinen julkaisuprosessi, joka nojaa vahvasti kehittäjän toimiin ja sovelluksen sisäisiin työkaluihin:
+
+1. **Rakentaminen:** Kehittäjä rakentaa uuden sovellusversion paikallisesti `build.py`-skriptillä. Tämä skripti hoitaa versionumeron päivityksen, muutoslokin generoinnin, `.exe`-tiedoston luomisen PyInstallerilla ja asennuspaketin luomisen Inno Setupilla.  
+2. **Julkaisu:** Sovelluksen sisäänrakennettu *"Julkaise versio..."* -toiminto (`publish_dialog.py`) avaa ikkunan, jossa kehittäjä voi tarkistaa version, muutoslokin ja muut tiedot.  
+3. **GitHub-julkaisu:** *"Julkaise"*-painike käyttää GitHub CLI (`gh`) -työkalua luodakseen uuden julkaisun (Release) suoraan GitHub-repositorioon ja lataa `build.py`:n luoman asennustiedoston sinne.  
+
+Tämä malli antaa kehittäjälle täyden kontrollin julkaisuajankohtaan, mutta automatisoi suurimman osan manuaalisista ja virheherkistä vaiheista.
+
+## Jatkuva Integraatio (CI)
+
+Projekti käyttää GitHub Actions -työnkulkua jatkuvaan integraatioon. CI-prosessi on määritelty tiedostossa `.github/workflows/ci.yml`, ja se varmistaa koodin laadun ja toimivuuden automaattisesti.
+
+CI-työnkulku suoritetaan jokaisen `push`- ja `pull_request`-tapahtuman yhteydessä `main`-haaraan, ja se sisältää seuraavat vaiheet:
+
+1. **Ympäristön alustus:** Pystyttää Windows-ympäristön ja määritellyn Python-version.  
+2. **Riippuvuuksien asennus:** Asentaa kaikki kehityksessä tarvittavat riippuvuudet `requirements-dev.txt`-tiedostosta.  
+3. **Tyyppitarkistus:** Suorittaa staattisen tyyppitarkistuksen `mypy`-työkalulla varmistaen, ettei koodissa ole tyyppivirheitä.  
+4. **Testaus:** Ajaa yksikkötestit `pytest`-työkalulla. Testauksen yhteydessä mitataan myös testikattavuus, ja CI-ajo epäonnistuu, jos kattavuus alittaa `pytest.ini`-tiedostossa määritellyn rajan.  
+
+Voit seurata CI-ajojen tilaa suoraan GitHub-repositorion **Actions**-välilehdeltä.
 
 ## Kehitysprosessi ja Tekoälyn Rooli
 
