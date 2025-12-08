@@ -1,7 +1,8 @@
-import subprocess
 import os
 import re
+
 from exceptions import NetworkManagerError
+from logic.command_utils import run_system_command
 
 def check_github_cli_auth() -> tuple[bool, str]:
     """
@@ -12,17 +13,15 @@ def check_github_cli_auth() -> tuple[bool, str]:
         is_ok is True if everything is fine, False otherwise.
         message contains the status or error.
     """
-    # This flag prevents a console window from flashing on Windows.
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
     try:
-        subprocess.run(["gh", "auth", "status"], check=True, capture_output=True, shell=False, startupinfo=startupinfo)
+        run_system_command(["gh", "auth", "status"], "GitHub CLI authentication check failed.")
         return (True, "GitHub CLI is ready.")
-    except FileNotFoundError:
-        return (False, "GitHub CLI ('gh') is not installed. Please install it from https://cli.github.com/")
-    except subprocess.CalledProcessError:
-        return (False, "You are not logged in to GitHub CLI. Please run 'gh auth login' in your terminal.")
+    except NetworkManagerError as e:
+        # Distinguish between 'gh not found' and 'not logged in'.
+        if "not found" in str(e):
+            return (False, "GitHub CLI ('gh') is not installed. Please install it from https://cli.github.com/")
+        else:
+            return (False, "You are not logged in to GitHub CLI. Please run 'gh auth login' in your terminal.")
 
 def get_repo_from_git_config() -> str | None:
     """
@@ -33,15 +32,10 @@ def get_repo_from_git_config() -> str | None:
         The 'owner/repo' string (e.g., "atkeppu/NetPilot") or None if not found.
     """
     try:
-        # This flag prevents a console window from flashing on Windows.
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-        result = subprocess.run(
+        result = run_system_command(
             ["git", "remote", "get-url", "origin"],
-            check=True, capture_output=True, text=True, encoding='utf-8', startupinfo=startupinfo
-        )
-        url = result.stdout.strip()
+            "Could not get remote URL for 'origin'.")
+        url = result.stdout.decode('utf-8').strip()
 
         # Regex to match both HTTPS and SSH URLs
         # e.g., https://github.com/owner/repo.git or git@github.com:owner/repo.git
@@ -53,7 +47,7 @@ def get_repo_from_git_config() -> str | None:
                 return repo_name[:-4]
             return repo_name
         return None
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except NetworkManagerError:
         return None
 
 def create_github_release(tag: str, title: str, notes: str, repo: str | None = None, asset_path: str | None = None) -> str:
@@ -86,19 +80,13 @@ def create_github_release(tag: str, title: str, notes: str, repo: str | None = N
         if asset_path:
             command.append(asset_path)
 
-        # This flag prevents a console window from flashing on Windows.
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-        result = subprocess.run(command, shell=False, check=True, capture_output=True, text=True, encoding='utf-8', startupinfo=startupinfo)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        error_output = e.stderr.strip() or e.stdout.strip()
+        result = run_system_command(command, f"Failed to create GitHub release for tag {tag}")
+        return result.stdout.decode('utf-8').strip()
+    except NetworkManagerError as e:
+        error_output = str(e)
 
         # Provide a more specific error message if the tag already exists.
         if "release with tag" in error_output and "already exists" in error_output:
             raise NetworkManagerError(f"A release for tag '{tag}' already exists on GitHub. Please update the version number.") from e
 
         raise NetworkManagerError(f"Failed to create GitHub release for tag {tag}:\n\n{error_output}") from e
-
-publish_to_github = create_github_release # Alias for backward compatibility if needed

@@ -4,7 +4,7 @@ import sys
 import os
 
 from exceptions import NetworkManagerError
-from .command_utils import run_system_command
+from .command_utils import run_system_command, _safe_decode
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,7 @@ def release_renew_ip():
         release_result = run_system_command(['ipconfig', '/release'], "IP address release command finished.", check=False)
         if release_result.returncode != 0:
             # Decode output safely for inspection. The error is often in stderr.
-            # The _safe_decode logic is part of run_system_command's error handling,
-            # but here we need to decode the raw bytes ourselves.
-            error_output = (release_result.stderr or release_result.stdout).decode('oem', errors='ignore').strip().lower()
+            error_output = _safe_decode(release_result.stderr or release_result.stdout).lower()
             
             # These are common, expected "errors" that we can safely ignore.
             non_critical_errors = [

@@ -90,19 +90,16 @@ def run_ps_command(script: str, ps_args: list[str] = None, stream_output: bool =
     Raises NetworkManagerError on failure.
     """
     logger.debug("Executing PowerShell script.")
-    try:
-        encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii') # type: ignore
-        command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
-        if ps_args:
-            command.extend(ps_args)
+    encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
+    command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
+    if ps_args:
+        command.extend(ps_args)
 
-        if stream_output:
-            return _stream_ps_command(command)
-        else:
-            result = run_system_command(command, "PowerShell script execution failed.")
-            return result.stdout.decode('utf-8', errors='ignore')
-    except NetworkManagerError:
-        raise
+    if stream_output:
+        return _stream_ps_command(command)
+    else:
+        result = run_system_command(command, "PowerShell script execution failed.")
+        return result.stdout.decode('utf-8', errors='ignore')
 
 def _stream_ps_command(command: list[str]):
     """Helper generator to stream output from a PowerShell command."""

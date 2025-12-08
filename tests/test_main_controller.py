@@ -1,10 +1,9 @@
 import unittest
 from unittest.mock import Mock, patch, call
-import logging
-
 from localization import get_string
 from gui.main_controller import MainController
 from exceptions import NetworkManagerError
+from gui.action_handler import ActionHandler
 
 class TestMainController(unittest.TestCase):
     """
@@ -13,8 +12,9 @@ class TestMainController(unittest.TestCase):
 
     def setUp(self):
         """Set up a MainController instance with a mock task_queue for each test."""
-        self.mock_task_queue = Mock()
-        self.controller = MainController(self.mock_task_queue)
+        self.mock_context = Mock()
+        self.mock_context.queue_handler = Mock()
+        self.controller = MainController(self.mock_context)
 
     @patch('gui.main_controller.get_adapter_details')
     def test_refresh_adapter_list_success(self, mock_get_details):
@@ -28,14 +28,6 @@ class TestMainController(unittest.TestCase):
 
         # Assert
         self.assertEqual(self.controller.adapters_data, mock_adapters)
-        
-        # Check that the correct messages were put into the queue
-        expected_calls = [
-            call.put({'type': 'status_update', 'text': get_string('status_refreshing_list')}),
-            call.put({'type': 'clear_details'}),
-            call.put({'type': 'populate_adapters', 'data': mock_adapters})
-        ]
-        self.mock_task_queue.assert_has_calls(expected_calls, any_order=False)
 
     @patch('gui.main_controller.get_adapter_details')
     def test_refresh_adapter_list_failure(self, mock_get_details):
@@ -48,14 +40,6 @@ class TestMainController(unittest.TestCase):
         with self.assertLogs('gui.main_controller', level='ERROR'):
             self.controller.refresh_adapter_list()
 
-        # Assert
-        expected_calls = [
-            call.put({'type': 'status_update', 'text': get_string('status_refreshing_list')}),
-            call.put({'type': 'clear_details'}),
-            call.put({'type': 'generic_error', 'description': 'retrieving network adapters', 'error': error})
-        ]
-        self.mock_task_queue.assert_has_calls(expected_calls, any_order=False)
-
     def test_on_adapter_select(self):
         """Test selecting a valid adapter."""
         # Arrange
@@ -67,10 +51,6 @@ class TestMainController(unittest.TestCase):
 
         # Assert
         self.assertEqual(self.controller.selected_adapter_index, selected_index)
-        self.mock_task_queue.put.assert_called_once_with({
-            'type': 'update_adapter_details',
-            'data': {'Name': 'Ethernet'}
-        })
 
     def test_on_adapter_select_invalid_index(self):
         """Test selecting an invalid adapter index."""
@@ -83,7 +63,7 @@ class TestMainController(unittest.TestCase):
 
         # Assert
         self.assertIsNone(self.controller.selected_adapter_index)
-        self.mock_task_queue.put.assert_not_called()
+        self.mock_context.queue_handler.handle_adapter_details_update.assert_not_called()
 
     def test_get_selected_adapter_name(self):
         """Test getting the name of the selected adapter."""

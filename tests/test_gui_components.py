@@ -164,8 +164,8 @@ class TestActionHandler(unittest.TestCase):
         mock_publish_window.assert_called_once_with(self.mock_context)
 
     @patch('gui.action_handler.app_logic.check_github_cli_auth', return_value=(False, "Auth error"))
-    @patch('gui.action_handler.messagebox.showerror')
-    @patch('gui.action_handler.PublishWindow')
+    @patch('gui.dialogs.messagebox.showerror')
+    @patch('gui.dialogs.PublishWindow')
     def test_show_publish_dialog_auth_fails(self, mock_publish_window, mock_showerror, mock_check_auth):
         """Test that an error is shown if GitHub auth fails."""
         self.handler.show_publish_dialog()
@@ -179,8 +179,8 @@ class TestActionHandler(unittest.TestCase):
         args = ("owner/repo", "v1.0", "Title", "Notes")
         self.handler.publish_release(*args)
         mock_run_task.assert_called_once_with(self.handler._execute_publish_in_thread, *args)
-
-    @patch('gui.action_handler.app_logic.create_github_release', side_effect=NetworkManagerError("API Error"))
+    
+    @patch('app_logic.create_github_release', side_effect=NetworkManagerError("API Error"))
     def test_execute_publish_in_thread_failure(self, mock_create_release):
         """Test that an error during publishing is caught and put to the queue."""
         with self.assertRaises(NetworkManagerError):

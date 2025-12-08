@@ -13,6 +13,7 @@ from logic.system import (
     is_admin,
     release_renew_ip,
     reset_network_stack,
+    relaunch_as_admin,
     terminate_process_by_pid,
 )
 
@@ -60,6 +61,7 @@ __all__ = [
     'is_admin',
     'release_renew_ip',
     'reset_network_stack',
+    'relaunch_as_admin',
     'terminate_process_by_pid',
     # adapters
     'disconnect_wifi_and_disable_adapter',
