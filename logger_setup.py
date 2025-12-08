@@ -78,7 +78,7 @@ def setup_logging() -> Path | None:
     Returns:
         The absolute path to the log file if successful, otherwise None.
     """
-    log_file_path: Path | None = get_log_file_path()
+    log_file_path: Path = get_log_file_path()
     log_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
@@ -109,12 +109,12 @@ def setup_logging() -> Path | None:
         # If we can't create the log directory/file, we can't log to a file.
         # Fallback to console-only logging and print an error.
         print(f"CRITICAL: Unable to create log file at {log_file_path}. "
-              f"Logging to console only. Error: {e}", file=sys.stderr)
-        log_file_path = None  # Indicate that file logging is not available.
+              f"Logging to console only. Error: {e}", file=sys.stderr)        
 
     # --- Console Handler ---
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
 
-    return log_file_path
+    # Return the path only if the file handler was successfully added.
+    return log_file_path if any(isinstance(h, logging.FileHandler) for h in root_logger.handlers) else None
