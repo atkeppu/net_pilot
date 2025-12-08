@@ -23,6 +23,26 @@ def get_app_version() -> str:
     except FileNotFoundError:
         raise RuntimeError("VERSION file not found in the project root.")
 
+def find_iscc() -> Path | None:
+    """
+    Finds the Inno Setup Compiler (ISCC.exe) from common installation paths.
+    Checks Program Files (x86) and Program Files directories.
+    """
+    program_files = os.environ.get("ProgramFiles(x86)", "")
+    program_files_64 = os.environ.get("ProgramW6432", "")
+
+    search_paths = [
+        Path(program_files) / "Inno Setup 6",
+        Path(program_files_64) / "Inno Setup 6",
+    ]
+
+    for path in search_paths:
+        iscc_path = path / "ISCC.exe"
+        if iscc_path.is_file():
+            print(f"   ...Löytyi Inno Setup -kääntäjä: {iscc_path}")
+            return iscc_path
+    return None
+
 def create_version_file(version: str):
     """Creates a version file for PyInstaller."""
     print("-> Luodaan versiotiedostoa...")
@@ -105,6 +125,16 @@ def clean_previous_builds():
         print(f"   ...ℹ️ Poistettu tiedosto: {VERSION_FILE}")
     print("   ...Valmis.")
 
+def run_inno_setup(iscc_path: Path):
+    """Runs the Inno Setup compiler if the script file exists."""
+    setup_script = Path.cwd() / "setup.iss"
+    if not setup_script.is_file():
+        print(f"-> ⚠️ Varoitus: Inno Setup -skriptiä '{setup_script.name}' ei löytynyt. Ohitetaan asennusohjelman luonti.")
+        return
+
+    command = [str(iscc_path), str(setup_script)]
+    run_command(command, "Rakennetaan asennusohjelmaa Inno Setupilla")
+
 def main():
     """Main function that builds the executable file."""
     print(f"--- Aloitetaan {APP_NAME}.exe-tiedoston rakentaminen ---")
@@ -143,10 +173,18 @@ def main():
         ]
         run_command(pyinstaller_command, "Rakennetaan .exe-tiedostoa PyInstallerilla")
 
+        # 5. Find and run Inno Setup compiler
+        iscc_path = find_iscc()
+        if iscc_path:
+            run_inno_setup(iscc_path)
+        else:
+            print("\n-> ⚠️ Varoitus: Inno Setup -kääntäjää (ISCC.exe) ei löytynyt.")
+            print("   Asenna Inno Setup (https://jrsoftware.org/isinfo.php) ja varmista, että se on asennettu oletussijaintiin, jotta asennusohjelma voidaan luoda automaattisesti.")
+
         print(f"\n--- VALMIS! ---")
         print(f"✅ {APP_NAME}.exe löytyy nyt kansiosta: {Path.cwd() / 'dist'}")
     finally:
-        # 5. Final cleanup: Ensure the temporary version file is always removed.
+        # Final cleanup: Ensure the temporary version file is always removed.
         if os.path.exists(VERSION_FILE):
             os.remove(VERSION_FILE)
             print(f"-> ℹ️ Siivottu väliaikainen tiedosto: {VERSION_FILE}")
