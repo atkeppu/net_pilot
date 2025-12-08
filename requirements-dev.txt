@@ -2,3 +2,5 @@
 # These packages are required for developing, testing, or building the application,
 # but not for running the compiled executable or the source code directly (if no runtime dependencies exist).
 pyinstaller>=5.0
+pytest>=7.0
+pytest-cov>=3.0

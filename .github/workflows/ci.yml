@@ -31,4 +31,4 @@ jobs:
 
     # Vaihe 4: Suorittaa testit pytestillä. Asetukset (kattavuusraportti, fail-under) tulevat pytest.ini-tiedostosta.
     - name: Test with pytest
-      run: pytest
+      run: python -m pytest
