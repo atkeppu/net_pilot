@@ -185,7 +185,7 @@ class GitHubActionsHandler(BaseActionHandler):
     def __init__(self, context: 'AppContext', get_selected_adapter_name_func: Callable[[], str | None]):
         super().__init__(context, get_selected_adapter_name_func)
 
-    def publish_release(self, repo: str, tag: str, title: str, notes: str, on_complete: Callable | None = None):
+    def publish_release(self, repo: str, tag: str, title: str, notes: str, on_complete: Callable | None = None, on_error: Callable | None = None):
         """
         Validates assets and starts the background task for creating a GitHub release.
         
@@ -194,7 +194,8 @@ class GitHubActionsHandler(BaseActionHandler):
             tag: The git tag for the release (e.g., 'v1.3.1').
             title: The title of the release.
             notes: The release notes content.
-            on_complete: An optional callback to run on the UI thread after completion.
+            on_complete: An optional callback to run on the UI thread after successful completion.
+            on_error: An optional callback to run on the UI thread if an error occurs.
         """
         # Find the assets to upload. The build script places them in the 'dist' folder.
         version = tag.lstrip('v')
@@ -218,7 +219,7 @@ class GitHubActionsHandler(BaseActionHandler):
             messagebox.showerror("Asset Not Found", f"Could not find a release file (installer or .exe) to upload in the 'dist' directory.\n\nPlease run the build script first.")
             return
 
-        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, assets_to_upload, on_complete=on_complete, on_error=on_complete)
+        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, assets_to_upload, on_complete=on_complete, on_error=on_error)
 
     def _execute_publish_in_thread(self, repo: str, tag: str, title: str, notes: str, asset_paths: list[str] | None = None):
         release_url = app_logic.create_github_release(tag, title, notes, repo, asset_paths)
