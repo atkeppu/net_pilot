@@ -11,7 +11,7 @@ from exceptions import NetworkManagerError
 # Import window classes to avoid circular imports
 from .netstat_window import NetstatWindow
 from .traceroute_window import TracerouteWindow
-from .dialogs import PublishWindow
+from publish_dialog import PublishDialog
 from .wifi_window import WifiConnectWindow
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ class ActionHandler:
     def __init__(self, context, get_selected_adapter_name_func: Callable[[], str | None]):
         self.context = context
         self.get_selected_adapter_name_func = get_selected_adapter_name_func
+        self.app_logic = app_logic
 
     def run_background_task(self, task_func, *args, on_complete=None):
         """A generic wrapper to run a function in a background thread."""
@@ -147,46 +148,74 @@ class ActionHandler:
         WifiConnectWindow(self.context)
 
     def show_publish_dialog(self):
-        """Checks for GitHub CLI auth and then opens the publish dialog, pre-filling the repo name."""
-        self.context.root.status_var.set(get_string('publish_checking_auth'))
-        is_ok, message = app_logic.check_github_cli_auth()
-        if not is_ok:
-            self.context.root.status_var.set(get_string('publish_auth_failed'))
-            messagebox.showerror(get_string('publish_auth_failed_title'), message)
-            return
+        """Opens the publish dialog."""
+        PublishDialog(self.context)
 
-        repo_name = app_logic.get_repo_from_git_config()
-        if not repo_name:
-            messagebox.showerror("Repository Not Found", "Could not automatically detect the GitHub repository name. Make sure you have an 'origin' remote configured.")
-            return
-
-        self.context.root.status_var.set(get_string('publish_ready'))
-        PublishWindow(self.context, initial_repo=repo_name)
-
-    def publish_release(self, repo: str, tag: str, title: str, notes: str):
+    def publish_release(self, repo: str, tag: str, title: str, notes: str, on_complete: Callable | None = None):
+        """
+        Validates assets and starts the background task for creating a GitHub release.
+        
+        Args:
+            repo: The repository name (e.g., 'owner/repo').
+            tag: The git tag for the release (e.g., 'v1.3.1').
+            title: The title of the release.
+            notes: The release notes content.
+            on_complete: An optional callback to run on the UI thread after completion.
+        """
         # Find the assets to upload. The build script places them in the 'dist' folder.
         version = tag.lstrip('v')
-        dist_path = Path.cwd() / "dist"
-        
-        asset_filenames = [
-            f"NetPilot-{version}-setup.exe", # The installer
-            "NetPilot.exe"                   # The standalone executable
-        ]
-        
-        asset_paths = [dist_path / filename for filename in asset_filenames]
-        found_assets = [str(p) for p in asset_paths if p.is_file()]
+        dist_path = app_logic.get_dist_path()
 
-        if not found_assets:
-            error_msg = (
-                f"Could not find any release files to upload in the 'dist' folder.\n\n"
-                "Please run 'python build.py' first to create the executable and the installer."
-            )
-            messagebox.showerror("Asset Not Found", error_msg)
-            self.context.root.status_var.set("Publish cancelled: Asset not found.")
+        # Find assets dynamically instead of constructing an expected filename.
+        # This is more robust if the version is changed in the dialog.
+        installer_path = next(dist_path.glob('*-setup.exe'), None)
+        exe_path = dist_path / "NetPilot.exe"
+
+        assets_to_upload = []
+        # Prioritize the installer. If it exists, upload only that.
+        # Otherwise, fall back to uploading the standalone executable.
+        if installer_path and installer_path.is_file():
+            assets_to_upload.append(str(installer_path))
+        elif exe_path.is_file():
+            assets_to_upload.append(str(exe_path))
+
+        if not assets_to_upload:
+            # Provide a more generic error message since we don't know the exact expected name anymore.
+            messagebox.showerror("Asset Not Found", f"Could not find a release file (installer or .exe) to upload in the 'dist' directory.\n\nPlease run the build script first.")
             return
 
-        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, found_assets)
+        self.run_background_task(self._execute_publish_in_thread, repo, tag, title, notes, assets_to_upload, on_complete=on_complete)
 
     def _execute_publish_in_thread(self, repo: str, tag: str, title: str, notes: str, asset_paths: list[str] | None = None):
         release_url = app_logic.create_github_release(tag, title, notes, repo, asset_paths)
-        self.context.task_queue.put({'type': 'status_update', 'text': get_string('publish_success', tag=tag)})
+        
+        # After a successful release, update the local VERSION file with the new tag.
+        try:
+            from logger_setup import get_project_or_exe_root
+            version_path = get_project_or_exe_root() / "VERSION"
+            new_version = tag.lstrip('v')
+            version_path.write_text(new_version, encoding="utf-8")
+            logger.info("Successfully updated VERSION file to %s after release.", new_version)
+        except (IOError, FileNotFoundError) as e:
+            logger.error("Failed to update VERSION file after release: %s", e)
+            
+        self.context.task_queue.put({'type': 'publish_success', 'url': release_url, 'tag': tag})
+
+    def generate_changelog_and_update_dialog(self, version: str, update_callback: Callable[[str], None]):
+        """
+        Runs the changelog generation in a background thread and uses a callback
+        to update the publish dialog's text widget upon completion.
+        """
+        self.run_background_task(self._execute_generate_changelog_in_thread, version, update_callback)
+
+    def _execute_generate_changelog_in_thread(self, version: str, update_callback: Callable[[str], None]):
+        """
+        Worker function that calls the changelog generation logic and then
+        schedules the UI update via the queue.
+        """
+        # This reuses the logic from the build script.
+        # Note: This creates a dependency on a function inside build.py.
+        from build import generate_changelog
+        generate_changelog(version)
+        changelog_content = (Path.cwd() / "CHANGELOG.md").read_text(encoding='utf-8')
+        self.context.task_queue.put({'type': 'ui_update', 'func': lambda: update_callback(changelog_content)})

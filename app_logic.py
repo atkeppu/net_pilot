@@ -7,6 +7,9 @@ GUI layer to import from, decoupling it from the internal structure of the
 logic package.
 """
 
+# From logger_setup
+from logger_setup import get_dist_path
+
 # From logic.system
 from logic.system import (
     flush_dns_cache,
@@ -56,6 +59,8 @@ from github_integration import (
 
 # Explicitly define the public API of this facade module.
 __all__ = [
+    # logger_setup
+    'get_dist_path',
     # system
     'flush_dns_cache',
     'is_admin',

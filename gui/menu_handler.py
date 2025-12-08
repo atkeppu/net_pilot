@@ -53,6 +53,25 @@ class MenuHandler:
                 ]
             }
         ]
+        
+        # Conditionally remove the "Publish" menu item if running as a packaged app.
+        # The 'frozen' attribute is set by PyInstaller.
+        if getattr(sys, 'frozen', False):
+            logger.info("Running as a packaged app, hiding developer-only menu items.")
+            tools_menu_items = self.menu_structure[0]['items']
+            # Find and remove the publish item and its preceding separator by searching for the command.
+            # This is more robust than relying on the label's text.
+            items_to_remove = [
+                item for item in tools_menu_items 
+                if item.get("command") == self.action_handler.show_publish_dialog
+            ]
+            if items_to_remove:
+                # This assumes the separator is right before the publish item.
+                publish_item_index = tools_menu_items.index(items_to_remove[0])
+                if publish_item_index > 0 and tools_menu_items[publish_item_index - 1].get("type") == "separator":
+                    del tools_menu_items[publish_item_index - 1 : publish_item_index + 1]
+                else: # Fallback if separator isn't there
+                    del tools_menu_items[publish_item_index]
 
     def create_menu(self):
         """Creates the main menu bar for the application."""

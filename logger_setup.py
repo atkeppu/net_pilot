@@ -23,7 +23,14 @@ def _get_log_level_from_env() -> int:
     Gets the logging level from the 'LOG_LEVEL' environment variable.
     Defaults to logging.INFO if the variable is not set or invalid.
     """
-    log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+    # Default to DEBUG when running from source for better development feedback,
+    # and INFO when packaged to avoid overly verbose logs for end-users.
+    if getattr(sys, 'frozen', False):
+        default_level = 'INFO'
+    else:
+        default_level = 'DEBUG'
+
+    log_level_str = os.getenv('LOG_LEVEL', default_level).upper()
     log_levels = {
         'DEBUG': logging.DEBUG,
         'INFO': logging.INFO,
@@ -36,6 +43,22 @@ def _get_log_level_from_env() -> int:
 def get_log_file_path() -> Path:
     """Returns the full, absolute path to the log file."""
     return LOG_DIR / LOG_FILE_NAME
+
+def get_project_or_exe_root() -> Path:
+    """
+    Returns the absolute path to the project root when running from source,
+    or the directory containing the .exe when running as a packaged app.
+    """
+    if getattr(sys, 'frozen', False):
+        # Running as a bundled exe (e.g., via PyInstaller)
+        return Path(sys.executable).parent
+    else:
+        # Running as a script
+        return Path(__file__).resolve().parent
+
+def get_dist_path() -> Path:
+    """Returns the absolute path to the 'dist' directory."""
+    return get_project_or_exe_root() if getattr(sys, 'frozen', False) else get_project_or_exe_root() / 'dist'
 
 def setup_logging() -> Path | None:
     """

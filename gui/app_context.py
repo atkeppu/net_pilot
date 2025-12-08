@@ -6,6 +6,7 @@ from .action_handler import ActionHandler
 from .queue_handler import QueueHandler
 from .polling_manager import PollingManager
 from .main_controller import MainController
+from .constants import APP_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,10 @@ class AppContext:
     def get_ping_target(self) -> str:
         """Provides the current ping target from the UI to other components."""
         return self.diagnostics_frame.get_ping_target() if self.diagnostics_frame else "8.8.8.8"
+
+    def get_app_version(self) -> str:
+        """Returns the application's version string."""
+        return APP_VERSION
 
     def register_window(self, window_instance):
         """Registers an open Toplevel window instance."""

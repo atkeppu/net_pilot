@@ -24,7 +24,7 @@ def _safe_decode(byte_string: bytes | None) -> str:
         except UnicodeDecodeError:
             return _decode_with_encoding(byte_string, 'ascii', errors='replace').strip().replace('\ufffd', '?')
 
-def run_system_command(command: list[str], error_message_prefix: str, check: bool = True):
+def run_system_command(command: list[str], error_message_prefix: str, check: bool = True, cwd: str | None = None, timeout: int = 10):
     """
     A helper function to run a system command and handle errors consistently.
     Raises NetworkManagerError on failure.
@@ -46,9 +46,10 @@ def run_system_command(command: list[str], error_message_prefix: str, check: boo
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NO_WINDOW
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            cwd=cwd
         ) as process:
-            stdout_bytes, stderr_bytes = process.communicate(timeout=10)
+            stdout_bytes, stderr_bytes = process.communicate(timeout=timeout)
             if check and process.returncode != 0:
                 # Manually raise a CalledProcessError to mimic subprocess.run's behavior.
                 raise subprocess.CalledProcessError(process.returncode, command, output=stdout_bytes, stderr=stderr_bytes)
@@ -72,7 +73,7 @@ def run_system_command(command: list[str], error_message_prefix: str, check: boo
         raise NetworkManagerError(f"{error_message_prefix}: {user_error_message}") from e
     except subprocess.TimeoutExpired as e:
         logger.error("System command timed out: %s", " ".join(command))
-        raise NetworkManagerError(f"The operation timed out after 10 seconds: {' '.join(command)}") from e
+        raise NetworkManagerError(f"The operation timed out after {timeout} seconds: {' '.join(command)}") from e
     except FileNotFoundError as e:
         raise NetworkManagerError(f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
 
@@ -90,7 +91,7 @@ def run_ps_command(script: str, ps_args: list[str] = None, stream_output: bool =
     Raises NetworkManagerError on failure.
     """
     logger.debug("Executing PowerShell script.")
-    encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
+    encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii') # type: ignore
     command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
     if ps_args:
         command.extend(ps_args)
