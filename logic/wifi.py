@@ -11,7 +11,8 @@ def list_wifi_networks() -> list[dict]:
     """Lists available Wi-Fi networks."""
     try:
         command = ['netsh', 'wlan', 'show', 'networks', 'mode=Bssid']
-        netsh_output = run_system_command(command, "Failed to list Wi-Fi networks").stdout.decode('oem', errors='ignore')
+        netsh_output = run_system_command(
+            command, "Failed to list Wi-Fi networks").stdout.decode('oem', errors='ignore')
         return _parse_netsh_wlan_output(netsh_output)
     except NetworkManagerError as e:
         if "no wireless interface" in str(e).lower():
@@ -25,9 +26,8 @@ def list_wifi_networks() -> list[dict]:
         raise
 
 def _parse_netsh_wlan_output(output: str) -> list[dict]:
-    """
-    Parses the output of 'netsh wlan show networks mode=bssid' command.
-    This version uses a single, more efficient regex to parse network blocks.
+    """Parses the output of 'netsh wlan show networks mode=bssid' command. This
+    version uses a single, more efficient regex to parse network blocks.
     """
     networks = []
     seen_ssids = set()
@@ -63,11 +63,12 @@ def _parse_netsh_wlan_output(output: str) -> list[dict]:
 
 def get_current_wifi_details() -> dict | None:
     """Gets details of the current Wi-Fi connection."""
-    logger.info("Entering get_current_wifi_details...")
-    # This PowerShell script is more efficient and reliable than parsing netsh and ipconfig output.
-    # It gets the active Wi-Fi adapter and its associated IP configuration in one go.
+    logger.info("Entering get_current_wifi_details...")  # noqa: E501
+    # This PowerShell script is more efficient and reliable than parsing netsh and
+    # ipconfig output. It gets the active Wi-Fi adapter and its associated IP
+    # configuration in one go.
     ps_script = """
-        $wifi = Get-NetAdapter -Physical | Where-Object { $_.InterfaceDescription -notlike "*Virtual*" -and $_.MediaType -eq "Native 802.11" -and $_.Status -eq "Up" } | Select-Object -First 1
+        $wifi = Get-NetAdapter -Physical | Where-Object { $_.InterfaceDescription -notlike "*Virtual*" -and $_.MediaType -eq "Native 802.11" -and $_.Status -eq "Up" } | Select-Object -First 1  # noqa: E501
         if ($null -eq $wifi) { exit }
 
         $ipConfig = $wifi | Get-NetIPConfiguration -Detailed
@@ -75,8 +76,8 @@ def get_current_wifi_details() -> dict | None:
 
         $result = @{
             interface_name = $wifi.Name
-            ssid = ($ssidInfo | Where-Object { $_.Line -like "*SSID*" } | ForEach-Object { ($_.Line -split ':', 2)[1].Trim() }) -join ""
-            signal = ($ssidInfo | Where-Object { $_.Line -like "*Signal*" } | ForEach-Object { ($_.Line -split ':', 2)[1].Trim() }) -join ""
+            ssid = ($ssidInfo | Where-Object { $_.Line -like "*SSID*" } | ForEach-Object { ($_.Line -split ':', 2)[1].Trim() }) -join ""  # noqa: E501
+            signal = ($ssidInfo | Where-Object { $_.Line -like "*Signal*" } | ForEach-Object { ($_.Line -split ':', 2)[1].Trim() }) -join ""  # noqa: E501
             ipv4 = ($ipConfig.IPv4Address.IPAddress | Select-Object -First 1)
         }
         $result | ConvertTo-Json
@@ -90,22 +91,26 @@ def get_current_wifi_details() -> dict | None:
 def disconnect_wifi():
     """Disconnects from the current Wi-Fi network."""
     try:
-        run_system_command(['netsh', 'wlan', 'disconnect'], "Failed to disconnect from Wi-Fi.")
+        run_system_command(
+            ['netsh', 'wlan', 'disconnect'], "Failed to disconnect from Wi-Fi.")
     except NetworkManagerError as e:
-        # It's not a critical error if the command fails because we're already disconnected.
-        # We can log this for debugging but don't need to raise an exception.
+        # It's not a critical error if the command fails because we're already
+        # disconnected. We can log this for debugging but don't need to raise an
+        # exception.
         error_str = str(e).lower()
         if "not connected" in error_str or "ei ole yhteydessä" in error_str:
-            logger.info("Attempted to disconnect, but no active Wi-Fi connection was found.")
+            logger.info(
+                "Attempted to disconnect, but no active Wi-Fi connection was found.")
         else:
             raise # Re-raise any other unexpected errors.
 
 def get_saved_wifi_profiles() -> list[dict]:
     """Gets saved Wi-Fi profiles and their passwords."""
-    # This PowerShell script is significantly faster than calling 'netsh' for each profile in a loop.
-    # It gets all profiles and then extracts the key from each profile's XML content.
+    # This PowerShell script is significantly faster than calling 'netsh' for each
+    # profile in a loop. It gets all profiles and then extracts the key from each
+    # profile's XML content.
     ps_script = r"""
-        $profiles = (netsh.exe wlan show profiles) | Select-String "All User Profile" | ForEach-Object { $_.Line.Split(':', 2)[1].Trim() }
+        $profiles = (netsh.exe wlan show profiles) | Select-String "All User Profile" | ForEach-Object { $_.Line.Split(':', 2)[1].Trim() }  # noqa: E501
 
         $result = foreach ($p in $profiles) {
             try {
@@ -116,10 +121,10 @@ def get_saved_wifi_profiles() -> list[dict]:
                     password = if ($password) { $password } else { "N/A" }
                 }
             } catch {
-                # This can happen if we don't have permissions for a profile or it has no key
+                # This can happen if we don't have permissions for a profile or it has no key  # noqa: E501
                 [PSCustomObject]@{
                     ssid     = $p
-                    password = "(Password not stored or accessible)"
+                    password = "(Password not stored or accessible)"  # noqa: E501
                 }
             }
         }
@@ -129,5 +134,7 @@ def get_saved_wifi_profiles() -> list[dict]:
         result_json = run_ps_command(ps_script)
         return json.loads(result_json) if result_json else []
     except (NetworkManagerError, json.JSONDecodeError) as e:
-        logger.error("Failed to get saved Wi-Fi profiles via PowerShell.", exc_info=True)
-        raise NetworkManagerError(f"Could not retrieve saved Wi-Fi profiles: {e}") from e
+        logger.error(
+            "Failed to get saved Wi-Fi profiles via PowerShell.", exc_info=True)
+        raise NetworkManagerError(
+            f"Could not retrieve saved Wi-Fi profiles: {e}") from e

@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from gui.app_context import AppContext
+from gui.main_controller import MainController
+from gui.action_handler import ActionHandler
 
 class TestAppContext(unittest.TestCase):
     """Tests for the AppContext class."""
@@ -13,8 +15,8 @@ class TestAppContext(unittest.TestCase):
     def test_initialization(self):
         """Test that components are initialized as expected."""
         self.assertIsNotNone(self.context.task_queue)
-        self.assertIsNone(self.context.main_controller)
-        self.assertIsNone(self.context.action_handler)
+        self.assertIsInstance(self.context.main_controller, MainController)
+        self.assertIsInstance(self.context.action_handler, ActionHandler)
         self.assertIsNone(self.context.queue_handler)
         self.assertIsNone(self.context.polling_manager)
 

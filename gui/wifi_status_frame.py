@@ -41,9 +41,10 @@ class WifiStatusFrame(ttk.LabelFrame):
     def update_status(self, wifi_data: dict | None):
         """Updates the labels with current Wi-Fi data."""
         is_connected = bool(wifi_data)
+        details = wifi_data or {}
         self.disconnect_button.config(state=tk.NORMAL if is_connected else tk.DISABLED)
 
         for label_key, key in self.status_map:
             default_value = get_string('wifi_status_not_connected') if key == "ssid" else "-"
-            value = wifi_data.get(key, default_value) if is_connected else default_value
+            value = details.get(key, default_value)
             self.wifi_labels[label_key].config(text=value)

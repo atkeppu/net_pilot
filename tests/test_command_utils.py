@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 import subprocess
 
-from logic.command_utils import _safe_decode, run_system_command, run_ps_command, run_external_ps_script
+from logic.command_utils import (_safe_decode, run_system_command, run_ps_command,
+                                 run_external_ps_script)
 from exceptions import NetworkManagerError
 
 class TestSafeDecode(unittest.TestCase):
@@ -106,9 +107,10 @@ class TestRunSystemCommand(unittest.TestCase):
         with self.assertLogs('logic.command_utils', level='DEBUG') as cm, \
              self.assertRaises(NetworkManagerError):
             run_system_command(["powershell", "-EncodedCommand", "longbase64string"], "Test failure")
-
+        
         # Check that the logged command was shortened
-        self.assertIn("Executing system command: powershell -EncodedCommand <...>", cm.output[0])
+        self.assertIn("Executing system command: powershell -EncodedCommand <...>",
+                      cm.output[0])
         # Check that the full error is still logged
         self.assertIn("longbase64string", cm.output[1])
 

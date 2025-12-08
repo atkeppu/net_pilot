@@ -5,6 +5,8 @@ pyinstaller>=5.0
 pytest>=7.0
 pytest-cov>=3.0
 requests>=2.28
+types-pyinstaller>=5.0
+types-requests>=2.0
 
 # Static Analysis Tools (for future CI steps)
 flake8>=6.0

@@ -16,7 +16,7 @@ MANIFEST_FILE = "admin.manifest"
 VERSION_FILE = "version.txt"
 
 def increment_version(part_to_increment: str):
-    """Increments the project version in the VERSION file."""
+    """Increments the project version in the VERSION file."""  # noqa: E501
     print(f"-> Päivitetään versionumeroa (osa: {part_to_increment})...")
     version_path = Path.cwd() / "VERSION"
     try:
@@ -38,7 +38,8 @@ def increment_version(part_to_increment: str):
         print(f"   ...✅ Versio päivitetty: {current_version} -> {new_version}")
 
     except (FileNotFoundError, ValueError) as e:
-        raise RuntimeError(f"VERSION-tiedoston lukeminen tai jäsentäminen epäonnistui: {e}")
+        raise RuntimeError(
+            f"VERSION-tiedoston lukeminen tai jäsentäminen epäonnistui: {e}")
 
 
 def get_app_version() -> str:
@@ -80,8 +81,10 @@ def find_upx() -> Path | None:
         return upx_dir
     else:
         print("\n-> ⚠️  Varoitus: UPX-pakkaajaa ei löytynyt järjestelmästä.")
-        print("   .exe-tiedoston kokoa ei pienennetä. Koko voi olla ~30-40 MB.")
-        print("   Asenna UPX (https://upx.github.io/) ja lisää se PATH-ympäristömuuttujaan pienentääksesi tiedostokoon ~15 MB:iin.")
+        print("   .exe-tiedoston kokoa ei pienennetä. Koko voi olla ~30-40 MB.")  # noqa: E501
+        print(
+            "   Asenna UPX (https://upx.github.io/) ja lisää se "
+            "PATH-ympäristömuuttujaan pienentääksesi tiedostokoon ~15 MB:iin.")
         return None
 
 
@@ -104,14 +107,26 @@ VSVersionInfo(
   kids=[
     StringFileInfo([
       StringTable(
-        u'040904B0',
-        [StringStruct(u'FileDescription', u'{app_name}'), StringStruct(u'FileVersion', u'{version_str}'), StringStruct(u'InternalName', u'{app_name}'), StringStruct(u'LegalCopyright', u'© Sami Turpeinen. All rights reserved.'), StringStruct(u'OriginalFilename', u'{app_name}.exe'), StringStruct(u'ProductName', u'{app_name}'), StringStruct(u'ProductVersion', u'{version_str}')])
+        u'040904B0', [
+            StringStruct(u'FileDescription', u'{app_name}'),
+            StringStruct(u'FileVersion', u'{version_str}'),
+            StringStruct(u'InternalName', u'{app_name}'),
+            StringStruct(u'LegalCopyright', u'© Sami Turpeinen. All rights reserved.'),
+            StringStruct(u'OriginalFilename', u'{app_name}.exe'),
+            StringStruct(u'ProductName', u'{app_name}'),
+            StringStruct(u'ProductVersion', u'{version_str}')
+        ])
     ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]
 )
 """
-    version_info = version_info_template.format(file_version=version.replace('.', ','), prod_version=version.replace('.', ','), app_name=APP_NAME, version_str=version)
+    version_info = version_info_template.format(
+        file_version=version.replace('.', ','),
+        prod_version=version.replace('.', ','),
+        app_name=APP_NAME,
+        version_str=version
+    )
     with open(VERSION_FILE, "w", encoding="utf-8") as f:
         f.write(version_info)
     print(f"   ...{VERSION_FILE} luotu.")
@@ -136,10 +151,14 @@ def run_command(command: list[str], description: str):
              print("--------------------------")
 
     except FileNotFoundError:
-        print(f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Varmista, että se on asennettu ja sen sijainti on lisätty järjestelmän PATH-ympäristömuuttujaan.", file=sys.stderr)
+        print(
+            f"   ...❌ VIRHE: Komentoa '{command[0]}' ei löytynyt. Varmista, "
+            f"että se on asennettu ja sen sijainti on lisätty järjestelmän "
+            f"PATH-ympäristömuuttujaan.", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"   ...❌ EPÄONNISTUI! Komento '{' '.join(command)}' palautti virhekoodin.", file=sys.stderr)
+        print(f"   ...❌ EPÄONNISTUI! Komento '{' '.join(command)}' "
+              f"palautti virhekoodin.", file=sys.stderr)
         print("\n--- VIRHE ---", file=sys.stderr)
         # Show the error message, which is often more useful than just the exit code.
         error_output = e.stderr.strip() or e.stdout.strip()
@@ -154,7 +173,8 @@ def clean_previous_builds():
     
     for path_item in [project_root / 'build', project_root / 'dist']:
         if path_item.exists():
-            # ignore_errors=True helps prevent crashes from locked files (e.g., by antivirus).
+            # ignore_errors=True helps prevent crashes from locked files
+            # (e.g., by antivirus).
             shutil.rmtree(path_item, ignore_errors=True)
             print(f"   ...ℹ️ Yritetty poistaa kansio: {path_item}")
     
@@ -171,7 +191,9 @@ def run_inno_setup(iscc_path: Path, version: str) -> str | None:
     """Runs the Inno Setup compiler if the script file exists."""
     setup_script = Path.cwd() / "setup.iss"
     if not setup_script.is_file():
-        print(f"-> ⚠️ Varoitus: Inno Setup -skriptiä '{setup_script.name}' ei löytynyt. Ohitetaan asennusohjelman luonti.")
+        print(
+            f"-> ⚠️ Varoitus: Inno Setup -skriptiä '{setup_script.name}' "
+            f"ei löytynyt. Ohitetaan asennusohjelman luonti.")
         return None
 
     # Define the versioned filename in the main dist directory.
@@ -186,16 +208,20 @@ def run_inno_setup(iscc_path: Path, version: str) -> str | None:
         old_installer.unlink()
 
     # Run Inno Setup
-    # Pass the version number directly to the Inno Setup compiler.
-    # This is more reliable than having Inno Setup read it from the .exe file properties.
-    # The /D flag defines a variable that can be used in the .iss script.
+    # Pass the version number directly to the Inno Setup compiler. This is
+    # more reliable than having Inno Setup read it from the .exe file
+    # properties. The /D flag defines a variable that can be used in the .iss
+    # script.
     command = [str(iscc_path), f"/DAppVersion={version}", str(setup_script)]
     run_command(command, "Rakennetaan asennusohjelmaa Inno Setupilla")
 
-    # Inno Setup script is configured to output directly to the dist folder with the correct name.
+    # Inno Setup script is configured to output directly to the dist folder
+    # with the correct name.
     # We just need to verify it was created.
     if final_installer_path.is_file():
-        print(f"   ...✅ Asennusohjelma luotu onnistuneesti: {final_installer_path}")
+        print(
+            f"   ...✅ Asennusohjelma luotu onnistuneesti: "
+            f"{final_installer_path}")
         return str(final_installer_path)
     else:
         print(f"   ...❌ VIRHE: Odotettua asennustiedostoa ei löytynyt sijainnista: {final_installer_path}", file=sys.stderr)
@@ -203,19 +229,23 @@ def run_inno_setup(iscc_path: Path, version: str) -> str | None:
 
 def create_git_info_file():
     """
-    Reads the git remote URL, extracts the repo name, and saves it to a JSON file
-    in the dist directory. This allows the packaged app to know its repo without git.
+    Reads the git remote URL, extracts the repo name, and saves it to a JSON
+    file in the dist directory. This allows the packaged app to know its repo
+    without git.
     """
     print("-> Luodaan git_info.json-tiedostoa...")
     try:
         # This command is run in the build environment, where git is available.
-        result = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, check=True)
         url = result.stdout.strip()
         match = re.search(r'github\.com[/:]([\w-]+/[\w.-]+?)(\.git)?$', url)
         if match:
             repo_name = match.group(1).replace('.git', '')
             info = {"repository": repo_name}
-            (Path.cwd() / "dist" / "git_info.json").write_text(json.dumps(info), encoding='utf-8')
+            (Path.cwd() / "dist" /
+             "git_info.json").write_text(json.dumps(info), encoding='utf-8')
             print(f"   ...✅ Tallennettu repository: {repo_name}")
     except (subprocess.CalledProcessError, FileNotFoundError, IndexError):
         print("   ...⚠️ Varoitus: Ei voitu tunnistaa Git-repositorya. Julkaisutoiminto ei välttämättä toimi paketoidussa sovelluksessa.")
@@ -229,24 +259,32 @@ def generate_changelog(version: str):
     try:
         # Find the most recent tag. If no tags, it will error out.
         latest_tag_cmd = ["git", "describe", "--tags", "--abbrev=0"]
-        latest_tag = subprocess.check_output(latest_tag_cmd, text=True, encoding='utf-8', stderr=subprocess.PIPE).strip()
+        latest_tag = subprocess.check_output(
+            latest_tag_cmd, text=True, encoding='utf-8',
+            stderr=subprocess.PIPE).strip()
         print(f"   ...Löytyi edellinen tagi: {latest_tag}")
         commit_range = f"{latest_tag}..HEAD"
     except subprocess.CalledProcessError:
         # No tags found, this is likely the first release. Log all commits.
-        print("   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki kaikista commiteista.")
+        print(
+            "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
+            "kaikista commiteista.")
         commit_range = "HEAD"
 
     try:
-        # Get commit subjects since the last tag in a nice bulleted list format.
+        # Get commit subjects since the last tag in a nice bulleted list
+        # format.
         log_cmd = ["git", "log", commit_range, "--pretty=format:- %s (%h)"]
-        changelog_content = subprocess.check_output(log_cmd, text=True, encoding='utf-8').strip()
+        changelog_content = subprocess.check_output(
+            log_cmd, text=True, encoding='utf-8').strip()
 
         if not changelog_content:
             changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
 
-        changelog_path = Path.cwd() / "CHANGELOG.md"
-        changelog_path.write_text(f"# Muutokset versiossa {version}\n\n{changelog_content}\n", encoding='utf-8')
+        changelog_path = Path.cwd() / "CHANGELOG.md"  # noqa: E501
+        changelog_path.write_text(
+            f"# Muutokset versiossa {version}\n\n{changelog_content}\n",
+            encoding='utf-8')
         print(f"   ...✅ Muutosloki tallennettu tiedostoon: {changelog_path}")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("   ...❌ VIRHE: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)
@@ -266,8 +304,9 @@ def print_summary(files_to_summarize: list[Path | None]):
     print("\n--- Yhteenveto luoduista tiedostoista ---")
     for file_path in files_to_summarize:
         if file_path and file_path.exists():
-            size = file_path.stat().st_size
-            print(f"  ✅ {file_path.name:<35} ({format_size(size):>10}) -> {file_path.parent}")
+            size = file_path.stat().st_size  # noqa: E501
+            print(
+                f"  ✅ {file_path.name:<35} ({format_size(size):>10}) -> {file_path.parent}")
     print("-------------------------------------------")
 
 def get_pyinstaller_command(version_file: str, upx_dir: Path | None) -> list[str]:
@@ -280,7 +319,8 @@ def get_pyinstaller_command(version_file: str, upx_dir: Path | None) -> list[str
         "--windowed",
         f"--icon={ICON_FILE}",
         f"--manifest={MANIFEST_FILE}",
-        # Exclude pygame, as it's being incorrectly included and bloating the exe.
+        # Exclude pygame, as it's being incorrectly included and bloating the
+        # exe.
         "--exclude-module", "pygame",
         "--hidden-import=requests",
         "--add-data", f"logic{os.pathsep}logic",
@@ -296,11 +336,12 @@ def get_pyinstaller_command(version_file: str, upx_dir: Path | None) -> list[str
 
 def main():
     """Main function that builds the executable file."""
-    parser = argparse.ArgumentParser(description=f"Build script for {APP_NAME}.")
+    parser = argparse.ArgumentParser(
+        description=f"Build script for {APP_NAME}.")
     parser.add_argument(
         '--increment', 
         choices=['patch', 'minor', 'major'], 
-        help="Increment the version number (patch, minor, or major) before building."
+        help="Increment the version number before building."
     )
     args = parser.parse_args()
 
@@ -315,7 +356,8 @@ def main():
         import PyInstaller
     except ImportError:
         print("PyInstalleria ei löytynyt. Asennetaan se nyt...")
-        run_command([sys.executable, "-m", "pip", "install", "pyinstaller"], "Asennetaan PyInstaller")
+        run_command([sys.executable, "-m", "pip", "install", "pyinstaller"],
+                    "Asennetaan PyInstaller")
     try:
         # 2. Clean up old artifacts before building
         clean_previous_builds()
@@ -345,11 +387,15 @@ def main():
                 installer_path_obj = Path(installer_path)
         else:
             print("\n-> ⚠️ Varoitus: Inno Setup -kääntäjää (ISCC.exe) ei löytynyt.")
-            print("   Asenna Inno Setup (https://jrsoftware.org/isinfo.php) ja varmista, että se on asennettu oletussijaintiin, jotta asennusohjelma voidaan luoda automaattisesti.")
+            print(
+                "   Asenna Inno Setup (https://jrsoftware.org/isinfo.php) ja "
+                "varmista, että se on asennettu oletussijaintiin, jotta "
+                "asennusohjelma voidaan luoda automaattisesti.")
 
         # 6. Print final summary
         dist_dir = Path.cwd() / 'dist'
-        files = [dist_dir / f"{APP_NAME}.exe", installer_path_obj, Path.cwd() / "CHANGELOG.md"]
+        files = [dist_dir / f"{APP_NAME}.exe",
+                 installer_path_obj, Path.cwd() / "CHANGELOG.md"]
         print_summary(files)
     finally:
         # Final cleanup: Ensure the temporary version file is always removed.

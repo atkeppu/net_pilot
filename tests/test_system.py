@@ -1,8 +1,9 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
-from logic.system import is_admin
-from logic.system import reset_network_stack, flush_dns_cache, release_renew_ip, terminate_process_by_pid, relaunch_as_admin
+from logic.system import (is_admin, reset_network_stack, flush_dns_cache,
+                          release_renew_ip, terminate_process_by_pid,
+                          relaunch_as_admin)
 from exceptions import NetworkManagerError
 
 class TestIsAdmin(unittest.TestCase):
@@ -41,13 +42,15 @@ class TestSystemCommands(unittest.TestCase):
     def test_reset_network_stack(self, mock_run):
         """Test that reset_network_stack calls the correct netsh command."""
         reset_network_stack()
-        mock_run.assert_called_once_with(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
+        mock_run.assert_called_once_with(
+            ['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
 
     @patch('logic.system.run_system_command')
     def test_flush_dns_cache(self, mock_run):
         """Test that flush_dns_cache calls the correct ipconfig command."""
         flush_dns_cache()
-        mock_run.assert_called_once_with(['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
+        mock_run.assert_called_once_with(
+            ['ipconfig', '/flushdns'], "Failed to flush DNS cache.")
 
     @patch('logic.system.run_system_command')
     def test_release_renew_ip_success(self, mock_run):
@@ -55,10 +58,12 @@ class TestSystemCommands(unittest.TestCase):
         # Simulate both commands succeeding
         mock_run.return_value = MagicMock(returncode=0)
         release_renew_ip()
-        
+
         self.assertEqual(mock_run.call_count, 2)
-        mock_run.assert_any_call(['ipconfig', '/release'], "IP address release command finished.", check=False)
-        mock_run.assert_any_call(['ipconfig', '/renew'], "Failed to renew IP address.")
+        mock_run.assert_any_call(
+            ['ipconfig', '/release'], "IP address release command finished.", check=False)
+        mock_run.assert_any_call(
+            ['ipconfig', '/renew'], "Failed to renew IP address.")
 
     @patch('logic.system.run_system_command')
     def test_release_renew_ip_release_fails_with_other_error(self, mock_run):
@@ -81,11 +86,12 @@ class TestSystemCommands(unittest.TestCase):
             MagicMock(returncode=1, stderr=b"media is disconnected"),
             MagicMock(returncode=0)
         ]
-        
+
         release_renew_ip()
-        
+
         self.assertEqual(mock_run.call_count, 2)
-        mock_run.assert_any_call(['ipconfig', '/renew'], "Failed to renew IP address.")
+        mock_run.assert_any_call(
+            ['ipconfig', '/renew'], "Failed to renew IP address.")
 
     @patch('logic.system.run_system_command')
     def test_release_renew_ip_renew_fails_with_dhcp_error(self, mock_run):
@@ -95,15 +101,16 @@ class TestSystemCommands(unittest.TestCase):
             MagicMock(returncode=0),
             NetworkManagerError("unable to contact your dhcp server")
         ]
-        
+
         with self.assertRaises(NetworkManagerError) as cm:
             release_renew_ip()
-        
+
         self.assertEqual(cm.exception.code, 'DHCP_SERVER_UNREACHABLE')
 
     @patch('logic.system.run_system_command')
     def test_release_renew_ip_renew_fails_with_adapter_disabled_error(self, mock_run):
-        """Test that a specific 'adapter disabled' error during renew is correctly identified."""
+        """Test that a specific 'adapter disabled' error during renew is
+        correctly identified."""
         # Simulate 'release' succeeding, but 'renew' failing with the specific error.
         mock_run.side_effect = [
             MagicMock(returncode=0),
@@ -130,10 +137,12 @@ class TestSystemCommands(unittest.TestCase):
         """Test a successful process termination."""
         pid_to_kill = 1234
         terminate_process_by_pid(pid_to_kill)
-        mock_run.assert_called_once_with(
-            ['taskkill', '/F', '/T', '/PID', str(pid_to_kill)],
-            f"Failed to terminate process with PID {pid_to_kill}."
-        )
+        mock_run.assert_called_once_with(['taskkill',
+                                          '/F',
+                                          '/T',
+                                          '/PID',
+                                          str(pid_to_kill)],
+                                         f"Failed to terminate process with PID {pid_to_kill}.")
 
     def test_terminate_process_by_pid_critical_process(self):
         """Test that terminating critical system PIDs is blocked."""

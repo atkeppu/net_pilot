@@ -20,15 +20,19 @@ class AppContext:
         self.task_queue = queue.Queue()
         self.status_var = None # Will be initialized later
         self.open_windows = {} # Tracks open Toplevel windows
-        
-        # These will be initialized after the UI is created.
-        # MainController is also initialized later as it depends on the full context.
-        self.main_controller = None
-        self.action_handler = None
+
+        # Initialize core logic components immediately. They don't have a hard
+        # dependency on the UI being fully rendered, only on the context itself.
+        self.main_controller = MainController(task_queue=self.task_queue)
+        self.action_handler = ActionHandler(
+            context=self,
+            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name
+        )
+
+        # These components have stronger dependencies on the UI and will be initialized later.
         self.queue_handler = None
         self.polling_manager = None
         self.root = None # The main tk.Tk() window
-
         self.diagnostics_frame = None # Will hold reference to the diagnostics UI frame
 
     def initialize_components(self, root, ui_frames: dict, status_var: tk.StringVar):
@@ -39,12 +43,6 @@ class AppContext:
         self.status_var = status_var
         self.diagnostics_frame = ui_frames['diagnostics']
 
-        # Create components that depend on the full context.
-        self.main_controller = MainController(task_queue=self.task_queue)
-        self.action_handler = ActionHandler(
-            context=self,
-            get_selected_adapter_name_func=self.main_controller.get_selected_adapter_name # type: ignore
-        )
         self.queue_handler = QueueHandler(
             context=self,
             ui_frames=ui_frames

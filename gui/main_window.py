@@ -27,6 +27,9 @@ class NetworkManagerApp(tk.Tk):
     def __init__(self, context: AppContext):
         super().__init__()
         self.context = context
+        # Set the root window in the context immediately, so other components can use it.
+        self.context.root = self
+
         self._is_closing = False  # Flag to indicate if the app is closing
 
         self.title(get_string('app_title'))
@@ -39,14 +42,13 @@ class NetworkManagerApp(tk.Tk):
         # --- Initialize Core UI and Context Components ---
         # The status_var is a core UI element, so it's created here.
         self.status_var = tk.StringVar(value=get_string('status_initializing'))
-        ui_frames = {}
+        self.ui_frames: dict[str, ttk.Frame] = {}
 
         # --- Setup UI Components ---
-        self._setup_ui_frames(ui_frames) # Populate the ui_frames dictionary.
+        self._setup_ui_frames(self.ui_frames) # Populate the ui_frames dictionary.
 
         # --- Initialize Handlers and Controllers ---
         # Pass the root window, frames, and the status_var to the context.
-        self.context.initialize_components(self, ui_frames, self.status_var)
         MenuHandler(self.context).create_menu()
 
         # --- Finalize UI and Start Application ---

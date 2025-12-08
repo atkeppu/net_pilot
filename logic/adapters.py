@@ -38,33 +38,37 @@ def get_adapter_details() -> list[dict]:
 
 def _handle_adapter_status_error(error: NetworkManagerError, adapter_name: str, action: str):
     """Analyzes a NetworkManagerError and re-raises a more specific one if possible."""
-    error_str = str(error).lower()
+    error_str = str(error).lower()  # noqa: E501
 
     # Check for the specific "cannot disable" error to provide a helpful hint.
-    if action == 'disable' and ("cannot be disabled" in error_str or "ei voi poistaa käytöstä" in error_str):
+    if action == 'disable' and ("cannot be disabled" in error_str or "ei voi poistaa käytöstä" in error_str):  # noqa: E501
         raise NetworkManagerError(
-            f"Cannot disable '{adapter_name}' while it is connected to a Wi-Fi network.",
+            f"Cannot disable '{adapter_name}' while it is connected to a Wi-Fi network.",  # noqa: E501
             code='WIFI_CONNECTED_DISABLE_FAILED'
         ) from error
 
     # Check for "already in state" error.
     # The message is typically "The object is already in the state 'Enabled'."
     if "object is already in the state" in error_str:
-        raise NetworkManagerError(f"Adapter '{adapter_name}' is already {action}d.") from error
+        raise NetworkManagerError(
+            f"Adapter '{adapter_name}' is already {action}d.") from error
 
     # For all other errors, re-raise a generic but informative exception.
-    raise NetworkManagerError(f"Failed to {action} adapter '{adapter_name}':\n{error}") from error
+    raise NetworkManagerError(
+        f"Failed to {action} adapter '{adapter_name}':\n{error}") from error
 
 def set_network_adapter_status_windows(adapter_name: str, action: str):
     """
-    Enables or disables a network adapter on Windows using PowerShell.
-    This version does not proactively check Wi-Fi status, relying on the OS to fail if needed.
+    Enables or disables a network adapter on Windows using PowerShell. This
+    version does not proactively check Wi-Fi status, relying on the OS to fail
+    if needed.
     """
     if action not in ['enable', 'disable']:
-        raise ValueError(f"Invalid action '{action}'. Must be 'enable' or 'disable'.")
+        raise ValueError(
+            f"Invalid action '{action}'. Must be 'enable' or 'disable'.")
 
     # Using PowerShell is more robust than netsh for enabling/disabling.
-    ps_command = action.capitalize() # Converts 'enable' -> 'Enable', 'disable' -> 'Disable'
+    ps_command = action.capitalize()  # noqa: E501
     ps_script = f"{ps_command}-NetAdapter -Name '{adapter_name}' -Confirm:$false"
 
     try:
@@ -73,8 +77,9 @@ def set_network_adapter_status_windows(adapter_name: str, action: str):
         _handle_adapter_status_error(e, adapter_name, action)
 
 def disconnect_wifi_and_disable_adapter(adapter_name: str):
-    """
-    A multi-step workflow to first disconnect from Wi-Fi, then disable the adapter.
+    """A multi-step workflow to first disconnect from Wi-Fi, then disable the
+    adapter.
+
     Yields status messages for the UI to consume.
     """
     yield "Step 1/3: Disconnecting from Wi-Fi..."
@@ -88,7 +93,8 @@ def disconnect_wifi_and_disable_adapter(adapter_name: str):
         time.sleep(POLL_INTERVAL_SECONDS)
     else:
         # If the loop finishes without breaking, the timeout was reached.
-        raise NetworkManagerError(f"Failed to confirm Wi-Fi disconnection within {DISCONNECT_TIMEOUT_SECONDS} seconds.")
+        raise NetworkManagerError(
+            f"Failed to confirm Wi-Fi disconnection within {DISCONNECT_TIMEOUT_SECONDS} seconds.")
 
     yield f"Step 3/3: Disabling adapter '{adapter_name}'..."
     set_network_adapter_status_windows(adapter_name, 'disable')

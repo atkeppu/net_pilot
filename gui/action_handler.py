@@ -3,7 +3,11 @@ from tkinter import messagebox
 import threading
 import logging
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .app_context import AppContext
+
 import app_logic
 from localization import get_string
 from exceptions import NetworkManagerError

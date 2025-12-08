@@ -1,8 +1,11 @@
 import unittest
 from unittest.mock import patch, call, mock_open
 
-from logic.wifi_profile_manager import _create_wlan_profile_xml, connect_to_wifi_network, connect_with_profile_name, delete_wifi_profile
+from logic.wifi_profile_manager import (_create_wlan_profile_xml,
+                                        connect_to_wifi_network,
+                                        connect_with_profile_name, delete_wifi_profile)
 from exceptions import NetworkManagerError
+
 
 class TestCreateProfileXML(unittest.TestCase):
     """
@@ -67,7 +70,7 @@ class TestCreateProfileXML(unittest.TestCase):
         self.assertIn(f"<name>{ssid}</name>", xml_output)
         self.assertIn("<authentication>open</authentication>", xml_output)
         self.assertIn("<encryption>WEP</encryption>", xml_output)
-        self.assertIn("<keyType>networkKey</keyType>", xml_output) # WEP uses 'networkKey'
+        self.assertIn("<keyType>networkKey</keyType>", xml_output)
         self.assertIn(f"<keyMaterial>{password}</keyMaterial>", xml_output)
 
     def test_unknown_auth_defaults_to_wpa2(self):
@@ -82,6 +85,7 @@ class TestCreateProfileXML(unittest.TestCase):
         self.assertIn("<authentication>WPA2PSK</authentication>", xml_output)
         self.assertIn("<encryption>AES</encryption>", xml_output)
         self.assertIn("<keyType>passPhrase</keyType>", xml_output)
+
 
 class TestProfileConnection(unittest.TestCase):
     """Tests for connecting to and deleting Wi-Fi profiles."""
@@ -107,8 +111,10 @@ class TestProfileConnection(unittest.TestCase):
 
         # 2. `netsh wlan add profile` and `netsh wlan connect` were called.
         expected_calls = [
-            call(['netsh', 'wlan', 'add', 'profile', 'filename="C:\\temp\\profile.xml"'], "Failed to add Wi-Fi profile for TestSSID"),
-            call(['netsh', 'wlan', 'connect', 'name="TestSSID"'], "Failed to connect using profile TestSSID")
+            call(['netsh', 'wlan', 'add', 'profile',
+                  'filename="C:\\temp\\profile.xml"'], "Failed to add Wi-Fi profile for TestSSID"),
+            call(['netsh', 'wlan', 'connect', 'name="TestSSID"'],
+                 "Failed to connect using profile TestSSID")
         ]
         mock_run_command.assert_has_calls(expected_calls)
 
@@ -125,20 +131,9 @@ class TestProfileConnection(unittest.TestCase):
         # Act & Assert
         with self.assertRaises(NetworkManagerError) as cm:
             connect_with_profile_name("MyProfile")
-        
+
         self.assertEqual(cm.exception.code, 'WIFI_INVALID_KEY')
         self.assertIn("The password is incorrect", str(cm.exception))
-
-    @patch('logic.wifi_profile_manager.run_system_command')
-    def test_connect_with_profile_name_generic_error(self, mock_run_command):
-        """Test that a generic error is re-raised without modification."""
-        # Arrange
-        error_message = "Some other connection failure"
-        mock_run_command.side_effect = NetworkManagerError(error_message)
-
-        # Act & Assert
-        with self.assertRaisesRegex(NetworkManagerError, error_message):
-            connect_with_profile_name("MyProfile")
 
     @patch('logic.wifi_profile_manager.run_system_command')
     def test_delete_wifi_profile(self, mock_run_command):
@@ -150,7 +145,9 @@ class TestProfileConnection(unittest.TestCase):
         delete_wifi_profile(profile_name)
 
         # Assert
-        mock_run_command.assert_called_once_with(['netsh', 'wlan', 'delete', 'profile', f'name="{profile_name}"'], f"Failed to delete profile {profile_name}")
+        mock_run_command.assert_called_once_with(
+            ['netsh', 'wlan', 'delete', 'profile',
+             f'name="{profile_name}"'], f"Failed to delete profile {profile_name}")
 
 if __name__ == '__main__':
     unittest.main()

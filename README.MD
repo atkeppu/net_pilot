@@ -69,11 +69,28 @@ Tämä osio on tarkoitettu kehittäjille, jotka haluavat muokata koodia tai rake
 3.  (Suositus) Luo ja aktivoi virtuaaliympäristö:
     ```bash
     python -m venv venv
-    .\venv\Scripts\activate
     ```
+    Aktivoi virtuaaliympäristö PowerShellissä:
+    ```powershell
+    .\venv\Scripts\Activate.ps1
+    ```
+    > **Huom!** Jos saat virheilmoituksen, sinun on ehkä sallittava skriptien suorittaminen nykyisessä istunnossa komennolla: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`
 4.  Asenna kehityksessä tarvittavat riippuvuudet:
     ```bash
     pip install -r requirements-dev.txt
+    ```
+
+### Koodin laadun tarkistaminen
+
+Projekti käyttää `flake8`- ja `mypy`-työkaluja koodin laadun ja tyyppiturvallisuuden varmistamiseksi. Voit suorittaa tarkistukset manuaalisesti komennolla:
+
+*   **Tarkista koodin tyyli ja yleiset virheet `flake8`:lla:**
+    ```bash
+    flake8 .
+    ```
+*   **Suorita staattinen tyyppitarkistus `mypy`:llä:**
+    ```bash
+    mypy .
     ```
 
 ### Sovelluksen rakentaminen (.exe)

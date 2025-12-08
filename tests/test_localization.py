@@ -11,33 +11,36 @@ class TestLocalization(unittest.TestCase):
         localization.CURRENT_LANGUAGE = localization.DEFAULT_LANGUAGE
 
     @patch('localization.locale.getdefaultlocale', return_value=('fi_FI', 'cp1252'))
-    def test_initialize_language_detects_fi(self, mock_getlocale):
+    def test_initialize_language_detects_fi(self, mock_getlocale):  # noqa: E501
         """Test that 'fi' is correctly detected."""
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('localization.configparser.ConfigParser.get', return_value=None):
+             patch('localization.configparser.ConfigParser.get', return_value=None):  # noqa: E501
             localization.initialize_language()
             self.assertEqual(localization.CURRENT_LANGUAGE, 'fi')
 
     @patch('localization.locale.getdefaultlocale', return_value=('en_US', 'cp1252'))
-    def test_initialize_language_detects_en(self, mock_getlocale):
+    def test_initialize_language_detects_en(self, mock_getlocale):  # noqa: E501
         """Test that 'en' is correctly detected."""
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('localization.configparser.ConfigParser.get', return_value=None):
+             patch('localization.configparser.ConfigParser.get', return_value=None):  # noqa: E501
             localization.initialize_language()
             self.assertEqual(localization.CURRENT_LANGUAGE, 'en')
 
     @patch('localization.locale.getdefaultlocale', return_value=('de_DE', 'cp1252'))
-    def test_initialize_language_falls_back_to_default(self, mock_getlocale):
+    def test_initialize_language_falls_back_to_default(self, mock_getlocale):  # noqa: E501
         """Test that an unsupported language falls back to the default ('en')."""
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('localization.configparser.ConfigParser.get', return_value=None):
+             patch('localization.configparser.ConfigParser.get', return_value=None):  # noqa: E501
             localization.initialize_language()
-            self.assertEqual(localization.CURRENT_LANGUAGE, localization.DEFAULT_LANGUAGE)
+            self.assertEqual(localization.CURRENT_LANGUAGE,
+                             localization.DEFAULT_LANGUAGE)
 
     def test_get_string_with_formatting(self):
-        """Test that get_string correctly formats a string with keyword arguments."""
+        """Test that get_string correctly formats a string with keyword
+        arguments."""
         localization.CURRENT_LANGUAGE = 'en'
-        result = localization.get_string('log_file_hint', log_file_path="C:\\log.txt")
+        result = localization.get_string(
+            'log_file_hint', log_file_path="C:\\log.txt")
         self.assertIn("C:\\log.txt", result)
 
     def test_get_string_missing_key(self):

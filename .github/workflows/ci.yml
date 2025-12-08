@@ -29,6 +29,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
 
+    # Vaihe 4: Suorittaa staattisen analyysin flake8:lla
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --show-source --statistics
+
+    # Vaihe 5: Suorittaa tyyppitarkistuksen mypy:llä
+    - name: Check types with mypy
+      run: |
+        mypy .
+
     # Vaihe 4: Suorittaa testit pytestillä. Asetukset (kattavuusraportti, fail-under) tulevat pytest.ini-tiedostosta.
     - name: Test with pytest
       run: python -m pytest

@@ -6,7 +6,9 @@ import argparse
 try:
     from github_integration import check_github_cli_auth
 except ImportError:
-    print("❌ Virhe: Projektin moduuleja ei voitu ladata. Varmista, että suoritat skriptin projektin juurihakemistosta.", file=sys.stderr)
+    print(
+        "❌ Virhe: Projektin moduuleja ei voitu ladata. Varmista, että "
+        "suoritat skriptin projektin juurihakemistosta.", file=sys.stderr)
     sys.exit(1)
 
 class Colors:
@@ -21,16 +23,21 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def run_command(command: list[str], check: bool = True, capture: bool = True) -> subprocess.CompletedProcess | None: # type: ignore
+def run_command(command: list[str], check: bool = True,
+                capture: bool = True) -> subprocess.CompletedProcess | None:
     """A helper to run a command and handle errors."""
     try:
         # Using shell=False is safer. The command should be a list of strings.
-        return subprocess.run(command, check=check, capture_output=capture, text=True, encoding='utf-8', shell=False)
+        return subprocess.run(
+            command, check=check, capture_output=capture, text=True,
+            encoding='utf-8', shell=False)
     except FileNotFoundError:
-        print(f"{Colors.FAIL}❌ Virhe: Komentoa '{command[0]}' ei löytynyt. Onko se asennettu ja PATH-ympäristömuuttujassa?{Colors.ENDC}", file=sys.stderr)
+        print(f"{Colors.FAIL}❌ Virhe: Komentoa '{command[0]}' ei löytynyt. "
+              f"Onko se asennettu ja PATH-ympäristömuuttujassa?{Colors.ENDC}", file=sys.stderr)
         return None
     except subprocess.CalledProcessError as e:
-        print(f"{Colors.FAIL}❌ Komennon '{' '.join(command)}' suoritus epäonnistui:{Colors.ENDC}", file=sys.stderr)
+        print(f"{Colors.FAIL}❌ Komennon '{' '.join(command)}' suoritus "
+              f"epäonnistui:{Colors.ENDC}", file=sys.stderr)
         error_output = e.stderr or e.stdout
         if error_output:
             print(f"{Colors.FAIL}{error_output.strip()}{Colors.ENDC}", file=sys.stderr)
@@ -57,14 +64,22 @@ Jos paikallinen repo on jo linkitetty etärepoon ('origin'), skripti vain
 työntää olemassa olevat muutokset sinne.
 """
     parser = argparse.ArgumentParser(
-        description="Luo uuden GitHub-repon ja vie olemassa olevan koodin sinne.",
+        description="Luo uuden GitHub-repon ja vie olemassa olevan koodin "
+                    "sinne.",
         epilog=epilog_text,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("repo_name", help="Uuden GitHub-repositorion nimi (esim. 'NetPilot').")
-    parser.add_argument("-m", "--message", default="Initial commit", help="Commit-viesti, jota käytetään (oletus: 'Initial commit').")
-    parser.add_argument("--private", action="store_true", help="Luo yksityisen (private) repositorion. Oletus on julkinen (public).")
-    parser.add_argument("-d", "--description", type=str, help="Repositorion kuvaus (asetetaan lainausmerkkien sisään).")
+    parser.add_argument(
+        "repo_name", help="Uuden GitHub-repositorion nimi (esim. 'NetPilot').")
+    parser.add_argument(
+        "-m", "--message", default="Initial commit",
+        help="Commit-viesti, jota käytetään (oletus: 'Initial commit').")
+    parser.add_argument(
+        "--private", action="store_true",
+        help="Luo yksityisen (private) repositorion. Oletus on julkinen (public).")
+    parser.add_argument(
+        "-d", "--description", type=str,
+        help="Repositorion kuvaus (asetetaan lainausmerkkien sisään).")
 
     args = parser.parse_args()
 
@@ -79,7 +94,8 @@ työntää olemassa olevat muutokset sinne.
     if not is_ok:
         print(f"{Colors.FAIL}❌ Virhe: {message}{Colors.ENDC}", file=sys.stderr)
         sys.exit(1)
-    print(f"{Colors.OKGREEN}✅ GitHub CLI on asennettu ja käyttäjä on kirjautunut.{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}✅ GitHub CLI on asennettu ja käyttäjä on "
+          f"kirjautunut.{Colors.ENDC}")
 
     # 2. Alusta Git-repository ja tee commit
     if not os.path.isdir('.git'):
@@ -88,8 +104,10 @@ työntää olemassa olevat muutokset sinne.
             sys.exit(1)
         # Set default branch to 'main'
         if not run_command(["git", "branch", "-M", "main"]):
-            print(f"{Colors.WARNING}⚠️ Varoitus: Oletushaaran nimeäminen 'main'-haaraksi epäonnistui.{Colors.ENDC}")
-        print(f"{Colors.OKGREEN}✅ Git-repository alustettu ja oletushaaraksi asetettu 'main'.{Colors.ENDC}")
+            print(f"{Colors.WARNING}⚠️ Varoitus: Oletushaaran nimeäminen "
+                  f"'main'-haaraksi epäonnistui.{Colors.ENDC}")
+        print(f"{Colors.OKGREEN}✅ Git-repository alustettu ja oletushaaraksi "
+              f"asetettu 'main'.{Colors.ENDC}")
     else:
         print(f"\n{Colors.BOLD}2/5: Olemassa oleva Git-repository löydetty.{Colors.ENDC}")
 
@@ -102,17 +120,21 @@ työntää olemassa olevat muutokset sinne.
     if status_result and status_result.stdout:
         print(f"-> Tehdään commit viestillä '{args.message}'...")
         if not run_command(["git", "commit", "-m", args.message]):
-            print(f"{Colors.FAIL}❌ Commit epäonnistui odottamattomasti.{Colors.ENDC}", file=sys.stderr)
+            print(f"{Colors.FAIL}❌ Commit epäonnistui odottamattomasti.{Colors.ENDC}",
+                  file=sys.stderr)
             sys.exit(1)
         print(f"{Colors.OKGREEN}✅ Commit onnistui.{Colors.ENDC}")
     else:
-        print(f"{Colors.OKCYAN}ℹ️ Info: Ei uusia muutoksia committoitavaksi. Ohitetaan commit.{Colors.ENDC}")
+        print(f"{Colors.OKCYAN}ℹ️ Info: Ei uusia muutoksia committoitavaksi. "
+              f"Ohitetaan commit.{Colors.ENDC}")
 
     # 3. Tarkista, onko etärepository jo linkitetty
     remotes = run_command(["git", "remote", "-v"])
-    if remotes and "origin" in remotes.stdout: # type: ignore
-        print(f"\n{Colors.BOLD}3/5: Etärepository 'origin' on jo olemassa. Ohitetaan luonti.{Colors.ENDC}")
-        print(f"\n{Colors.BOLD}4/5: Työnnetään muutokset olemassa olevaan repositoryyn...{Colors.ENDC}")
+    if remotes and "origin" in remotes.stdout:
+        print(f"\n{Colors.BOLD}3/5: Etärepository 'origin' on jo olemassa. "
+              f"Ohitetaan luonti.{Colors.ENDC}")
+        print(f"\n{Colors.BOLD}4/5: Työnnetään muutokset olemassa olevaan "
+              f"repositoryyn...{Colors.ENDC}")
         
         current_branch = get_current_branch()
         if not current_branch:
@@ -120,7 +142,8 @@ työntää olemassa olevat muutokset sinne.
             sys.exit(1)
             
         if not run_command(["git", "push", "origin", current_branch]):
-            print(f"{Colors.FAIL}❌ Koodin työntäminen haaraan '{current_branch}' epäonnistui.{Colors.ENDC}", file=sys.stderr)
+            print(f"{Colors.FAIL}❌ Koodin työntäminen haaraan "
+                  f"'{current_branch}' epäonnistui.{Colors.ENDC}", file=sys.stderr)
             sys.exit(1)
             
         repo_url_output = run_command(["git", "remote", "get-url", "origin"])
@@ -130,10 +153,12 @@ työntää olemassa olevat muutokset sinne.
     else:
         print(f"\n{Colors.BOLD}3/5: Vahvistetaan GitHub-repon luonti...{Colors.ENDC}")
         visibility = "--private" if args.private else "--public"
-        visibility_text = "yksityisen (private)" if args.private else "julkisen (public)"
+        visibility_text = "yksityisen (private)" if args.private else "julkisen (public)"  # noqa: E501
         
         try:
-            confirm = input(f"Haluatko luoda uuden {visibility_text} GitHub-repon nimellä '{args.repo_name}'? (y/N): ")
+            confirm = input(
+                f"Haluatko luoda uuden {visibility_text} GitHub-repon "
+                f"nimellä '{args.repo_name}'? (y/N): ")
             if confirm.lower() != 'y':
                 print(f"{Colors.WARNING}Peruutettu käyttäjän toimesta.{Colors.ENDC}")
                 sys.exit(0)
@@ -146,36 +171,44 @@ työntää olemassa olevat muutokset sinne.
         # If repo_name contains a '/', assume it's in 'owner/repo' format.
         # Otherwise, create it under the currently logged-in user.
         if '/' in args.repo_name:
-            create_command = ["gh", "repo", "create", args.repo_name, visibility, "--source=."]
+            create_command = ["gh", "repo", "create",
+                              args.repo_name, visibility, "--source=."]
         else:
-            create_command = ["gh", "repo", "create", args.repo_name, visibility, "--source=.", "--push"]
+            create_command = ["gh", "repo", "create", args.
+                              repo_name, visibility, "--source=.", "--push"]
         
         if args.description:
             create_command.extend(["-d", args.description])
 
         result = run_command(create_command)
-        if not result: # type: ignore
-            print(f"{Colors.FAIL}❌ Repositorion luonti epäonnistui. Tarkista yllä oleva virheilmoitus.{Colors.ENDC}", file=sys.stderr)
-            print(f"{Colors.FAIL}   (Yleinen syy on, että samanniminen repositorio on jo olemassa GitHubissa.){Colors.ENDC}", file=sys.stderr)
+        if not result:
+            print(f"{Colors.FAIL}❌ Repositorion luonti epäonnistui. "
+                  f"Tarkista yllä oleva virheilmoitus.{Colors.ENDC}", file=sys.stderr)
+            print(f"{Colors.FAIL}   (Yleinen syy on, että samanniminen "
+                  f"repositorio on jo olemassa GitHubissa.){Colors.ENDC}", file=sys.stderr)
             sys.exit(1)
         
-        # If we created the repo under an organization or another user, we need to manually set the remote and push.
+        # If we created the repo under an organization or another user, we
+        # need to manually set the remote and push.
         if '/' in args.repo_name:
             print("-> Asetetaan etärepository ja työnnetään koodi...")
             repo_url_for_remote = f"https://github.com/{args.repo_name}.git"
-            run_command(["git", "remote", "add", "origin", repo_url_for_remote])
+            run_command(
+                ["git", "remote", "add", "origin", repo_url_for_remote])
             run_command(["git", "push", "-u", "origin", "main"])
 
         # The URL can be in stdout or stderr depending on the gh version.
         # We search both to be safe.
-        combined_output = result.stdout + "\n" + result.stderr # type: ignore
-        repo_url = next((line for line in combined_output.splitlines() if line.startswith('https://github.com/')), "N/A")
+        combined_output = result.stdout + "\n" + result.stderr
+        repo_url = next((line for line in combined_output.splitlines()
+                        if line.startswith('https://github.com/')), "N/A")
 
         print(f"{Colors.OKGREEN}✅ Repositorio luotu onnistuneesti.{Colors.ENDC}")
         print(f"\n{Colors.BOLD}5/5: Koodi työnnetty GitHubiin.{Colors.ENDC}")
 
     print(f"\n{Colors.HEADER}--- VALMIS! ---{Colors.ENDC}")
-    print(f"{Colors.OKGREEN}✅ Projektisi lähdekoodi on nyt GitHubissa osoitteessa: {Colors.OKCYAN}{repo_url.replace('.git', '')}{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}✅ Projektisi lähdekoodi on nyt GitHubissa "
+          f"osoitteessa: {Colors.OKCYAN}{repo_url.replace('.git', '')}{Colors.ENDC}")
 
 if __name__ == "__main__":
     main()

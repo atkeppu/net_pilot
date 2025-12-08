@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch, Mock, call
 
-from github_integration import check_github_cli_auth, get_repo_from_git_config, create_github_release
+from github_integration import (check_github_cli_auth, get_repo_from_git_config,
+                                create_github_release)
 from exceptions import NetworkManagerError
 from logic.command_utils import run_system_command
 
@@ -103,7 +104,8 @@ class TestGitHubIntegration(unittest.TestCase):
     @patch('github_integration.get_repo_from_git_config', return_value='owner/detected')
     @patch('logic.command_utils.run_system_command')
     def test_create_release_uses_detected_repo(self, mock_run, mock_get_repo):
-        """Test that create_github_release calls get_repo_from_git_config if repo is not provided."""
+        """Test that create_github_release calls get_repo_from_git_config if repo is
+        not provided."""
         # Act
         create_github_release("v1.0", "Title", "Notes")
 

@@ -62,17 +62,19 @@ class TestMainController(unittest.TestCase):
             self.controller.on_adapter_select(99) # Invalid index
 
         # Assert
-        self.assertIsNone(self.controller.selected_adapter_index)
-        self.mock_context.queue_handler.handle_adapter_details_update.assert_not_called()
+        self.assertIsNone(self.controller.selected_adapter_index)  # noqa: E501
+        self.mock_context.queue_handler.handle_adapter_details_update.assert_not_called()  # noqa: E501
 
     def test_get_selected_adapter_name(self):
         """Test getting the name of the selected adapter."""
         # Arrange
-        self.controller.adapters_data = [{'Name': 'Wi-Fi'}, {'Name': 'Ethernet'}]
+        self.controller.adapters_data = [
+            {'Name': 'Wi-Fi'}, {'Name': 'Ethernet'}]
         self.controller.selected_adapter_index = 0
 
         # Act & Assert
-        self.assertEqual(self.controller.get_selected_adapter_name(), 'Wi-Fi')
+        self.assertEqual(
+            self.controller.get_selected_adapter_name(), 'Wi-Fi')
         
         # Test when nothing is selected
         self.controller.selected_adapter_index = None
@@ -83,13 +85,15 @@ class TestMainController(unittest.TestCase):
         self.controller.adapters_data = [{'Name': 'Wi-Fi'}]
         self.controller.selected_adapter_index = 0
         speeds = {'Wi-Fi': {'download': 123}, 'Ethernet': {'download': 456}}
-
+ 
         # Should return data for 'Wi-Fi'
-        self.assertEqual(self.controller.get_speed_for_selected_adapter(speeds), {'download': 123})
+        self.assertEqual(self.controller.get_speed_for_selected_adapter(
+            speeds), {'download': 123})
 
         # Should return None if nothing is selected
         self.controller.selected_adapter_index = None
-        self.assertIsNone(self.controller.get_speed_for_selected_adapter(speeds))
+        self.assertIsNone(
+            self.controller.get_speed_for_selected_adapter(speeds))
 
 if __name__ == '__main__':
     unittest.main()

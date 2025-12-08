@@ -18,6 +18,7 @@ LOG_FILE_NAME = "app.log"
 MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024  # 1 MB
 BACKUP_COUNT = 5  # Keep 5 old log files (e.g., app.log.1, app.log.2, ...)
 
+
 def _get_log_level_from_env() -> int:
     """
     Gets the logging level from the 'LOG_LEVEL' environment variable.
@@ -40,9 +41,11 @@ def _get_log_level_from_env() -> int:
     }
     return log_levels.get(log_level_str, logging.INFO)
 
+
 def get_log_file_path() -> Path:
     """Returns the full, absolute path to the log file."""
     return LOG_DIR / LOG_FILE_NAME
+
 
 def get_project_or_exe_root() -> Path:
     """
@@ -50,15 +53,19 @@ def get_project_or_exe_root() -> Path:
     or the directory containing the .exe when running as a packaged app.
     """
     if getattr(sys, 'frozen', False):
-        # Running as a bundled exe (e.g., via PyInstaller)
+        # Running as a bundled exe (e.g., via PyInstaller).
+        # The executable is in the root of the distribution.
         return Path(sys.executable).parent
     else:
         # Running as a script
-        return Path(__file__).resolve().parent
+        return Path(sys.argv[0]).resolve().parent
 
 def get_dist_path() -> Path:
     """Returns the absolute path to the 'dist' directory."""
-    return get_project_or_exe_root() if getattr(sys, 'frozen', False) else get_project_or_exe_root() / 'dist'
+    if getattr(sys, 'frozen', False):
+        return get_project_or_exe_root()
+    return get_project_or_exe_root() / 'dist'
+
 
 def setup_logging() -> Path | None:
     """
@@ -71,7 +78,7 @@ def setup_logging() -> Path | None:
     Returns:
         The absolute path to the log file if successful, otherwise None.
     """
-    log_file_path = get_log_file_path()
+    log_file_path: Path | None = get_log_file_path()
     log_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
@@ -79,6 +86,10 @@ def setup_logging() -> Path | None:
     # Set level from environment variable, defaulting to INFO.
     # This allows for easy debugging without code changes.
     root_logger.setLevel(_get_log_level_from_env())
+    
+    # Clear any existing handlers to prevent duplicate logging.
+    if root_logger.hasHandlers():
+        root_logger.handlers.clear()
 
     # --- File Handler (Rotating) ---
     try:
@@ -97,8 +108,9 @@ def setup_logging() -> Path | None:
     except (OSError, PermissionError) as e:
         # If we can't create the log directory/file, we can't log to a file.
         # Fallback to console-only logging and print an error.
-        print(f"CRITICAL: Unable to create log file at {log_file_path}. Logging to console only. Error: {e}", file=sys.stderr)
-        log_file_path = None # Indicate that file logging is not available.
+        print(f"CRITICAL: Unable to create log file at {log_file_path}. "
+              f"Logging to console only. Error: {e}", file=sys.stderr)
+        log_file_path = None  # Indicate that file logging is not available.
 
     # --- Console Handler ---
     console_handler = logging.StreamHandler(sys.stdout)

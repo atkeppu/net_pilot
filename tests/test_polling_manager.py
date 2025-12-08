@@ -26,21 +26,25 @@ class TestPollingManagerSpeedCalc(unittest.TestCase):
         # Download: (2000 - 1000) / 2.0 = 500 Bps
         # Upload:   (750 - 500) / 2.0 = 125 Bps
         expected = {'Adapter 1': {'download': 500.0, 'upload': 125.0}}
-        
-        result = self.polling_manager._calculate_speed_delta(current_stats, last_stats, time_delta)
+
+        result = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, time_delta)
         self.assertEqual(result, expected)
 
     def test_counter_rollover_returns_zero(self):
-        """Test that a negative delta (counter rollover) results in 0 speed for that metric."""
+        """Test that a negative delta (counter rollover) results in 0 speed for
+        that metric."""
         last_stats = {'Adapter 1': {'received': 5000, 'sent': 1000}}
-        current_stats = {'Adapter 1': {'received': 1000, 'sent': 1500}} # 'received' counter reset
+        current_stats = {'Adapter 1': {'received': 1000,
+                                       'sent': 1500}}  # 'received' counter reset
         time_delta = 1.0
 
         # Download speed should be 0 due to negative delta.
         # Upload speed should be calculated normally: (1500 - 1000) / 1.0 = 500 Bps
         expected = {'Adapter 1': {'download': 0.0, 'upload': 500.0}}
-        
-        result = self.polling_manager._calculate_speed_delta(current_stats, last_stats, time_delta)
+
+        result = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, time_delta)
         self.assertEqual(result, expected)
 
     def test_zero_time_delta(self):
@@ -48,21 +52,25 @@ class TestPollingManagerSpeedCalc(unittest.TestCase):
         last_stats = {'Adapter 1': {'received': 1000, 'sent': 500}}
         current_stats = {'Adapter 1': {'received': 2000, 'sent': 750}}
         
-        result_zero = self.polling_manager._calculate_speed_delta(current_stats, last_stats, 0)
+        result_zero = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, 0)
         self.assertEqual(result_zero, {})
 
-        result_negative = self.polling_manager._calculate_speed_delta(current_stats, last_stats, -1.0)
+        result_negative = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, -1.0)
         self.assertEqual(result_negative, {})
 
     def test_empty_or_missing_stats(self):
         """Test that empty or missing stats dictionaries are handled gracefully."""
         last_stats = {'Adapter 1': {'received': 1000, 'sent': 500}}
         current_stats = {'Adapter 1': {'received': 2000, 'sent': 750}}
-
+ 
         # No last stats available
-        self.assertEqual(self.polling_manager._calculate_speed_delta(current_stats, {}, 1.0), {})
+        self.assertEqual(self.polling_manager._calculate_speed_delta(
+            current_stats, {}, 1.0), {})
         # No current stats available
-        self.assertEqual(self.polling_manager._calculate_speed_delta({}, last_stats, 1.0), {})
+        self.assertEqual(
+            self.polling_manager._calculate_speed_delta({}, last_stats, 1.0), {})
 
     def test_new_adapter_appears(self):
         """Test that a newly appeared adapter is ignored in the first calculation."""
@@ -71,19 +79,21 @@ class TestPollingManagerSpeedCalc(unittest.TestCase):
             'Adapter 1': {'received': 2000, 'sent': 750},
             'Adapter 2': {'received': 500, 'sent': 500} # New adapter
         }
-        
-        result = self.polling_manager._calculate_speed_delta(current_stats, last_stats, 1.0)
+
+        result = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, 1.0)
         self.assertIn('Adapter 1', result)
         self.assertNotIn('Adapter 2', result)
 
     def test_invalid_data_in_stats(self):
         """Test that non-numeric or missing byte counts are skipped."""
         last_stats = {'Adapter 1': {'received': 1000, 'sent': 500}}
-        current_stats = {
-            'Adapter 1': {'received': None, 'sent': 'not-a-number'} # Invalid data
+        current_stats = {  # Invalid data
+            'Adapter 1': {'received': None, 'sent': 'not-a-number'}
         }
-        
-        result = self.polling_manager._calculate_speed_delta(current_stats, last_stats, 1.0)
+
+        result = self.polling_manager._calculate_speed_delta(
+            current_stats, last_stats, 1.0)
         self.assertNotIn('Adapter 1', result)
 
 class TestCalculateCurrentSpeeds(unittest.TestCase):
@@ -98,7 +108,8 @@ class TestCalculateCurrentSpeeds(unittest.TestCase):
     def test_invalid_json_returns_empty_dict(self):
         """Test that malformed JSON input is handled gracefully."""
         with self.assertLogs('gui.polling_manager', level='WARNING'):
-            result = self.polling_manager._calculate_current_speeds("{not-json")
+            result = self.polling_manager._calculate_current_speeds(
+                "{not-json")
             self.assertEqual(result, {})
 
     def test_non_list_or_dict_json_returns_empty_dict(self):
@@ -121,7 +132,8 @@ class TestPollingManagerLoop(unittest.TestCase):
     @patch('gui.polling_manager.time.time')
     @patch('gui.polling_manager.get_current_wifi_details')
     @patch('gui.polling_manager.PollingManager._fetch_diagnostics_and_queue')
-    def test_first_poll_runs_all_tasks(self, mock_fetch_diag, mock_get_wifi, mock_time):
+    def test_first_poll_runs_all_tasks(self, mock_fetch_diag, mock_get_wifi,
+                                       mock_time):
         """Test that the very first poll runs both heavy and light tasks."""
         # Arrange
         mock_time.return_value = 1000.0
@@ -132,7 +144,8 @@ class TestPollingManagerLoop(unittest.TestCase):
         # loop runs exactly once.
         stop_event = threading.Event()
         self.polling_manager.is_running = True
-        with patch.object(stop_event, 'wait', side_effect=lambda timeout: stop_event.set()):
+        with patch.object(stop_event, 'wait',
+                          side_effect=lambda timeout: stop_event.set()):
             self.polling_manager._poll_loop(stop_event)
 
         # Assert
@@ -141,15 +154,15 @@ class TestPollingManagerLoop(unittest.TestCase):
         mock_get_wifi.assert_called_once()
 
         # Check that all messages were put into the queue
-        expected_calls = [
-            call.put({'type': 'wifi_status_update', 'data': {'ssid': 'TestNet'}}),
-        ]
+        expected_calls = [call.put(
+            {'type': 'wifi_status_update', 'data': {'ssid': 'TestNet'}}), ]
         self.mock_context.task_queue.assert_has_calls(expected_calls)
 
     @patch('gui.polling_manager.time.time')
     @patch('gui.polling_manager.get_current_wifi_details')
     @patch('gui.polling_manager.get_network_diagnostics')
-    def test_subsequent_poll_runs_only_light_tasks(self, mock_get_diag, mock_get_wifi, mock_time):
+    def test_subsequent_poll_runs_only_light_tasks(self, mock_get_diag,
+                                                   mock_get_wifi, mock_time):
         """Test that a subsequent poll (before interval) only runs speed calculation."""
         # Arrange
         self.polling_manager.diagnostics_interval = 0.1 # Shorten interval for test
@@ -158,8 +171,9 @@ class TestPollingManagerLoop(unittest.TestCase):
         
         # Run the loop in a thread and use an event to stop it after two iterations.
         stop_event = threading.Event()
-        self.polling_manager.is_running = True
-        poll_thread = threading.Thread(target=self.polling_manager._poll_loop, args=(stop_event,))
+        self.polling_manager.is_running = True  # noqa: E501
+        poll_thread = threading.Thread(
+            target=self.polling_manager._poll_loop, args=(stop_event,))
         poll_thread.start()
         
         # Wait long enough for two cycles
@@ -175,20 +189,22 @@ class TestPollingManagerLoop(unittest.TestCase):
 
     @patch('gui.polling_manager.subprocess.Popen')
     def test_speed_poll_loop_skips_when_no_adapter_selected(self, mock_popen):
-        """Test that speed calculation is skipped if no adapter is selected."""
+        """Test that speed calculation is skipped if no adapter is
+        selected."""
         # Arrange
         self.polling_manager.is_running = True
-        self.mock_context.main_controller.get_selected_adapter_name.return_value = None
+        self.mock_context.main_controller.get_selected_adapter_name.return_value = None  # noqa: E501
         
         # Mock the process to simulate it running and producing output
         mock_process = mock_popen.return_value
         # Make the loop run only once by having poll() return a value on the second call
         mock_process.poll.side_effect = [None, 0]
-        mock_process.stdout.readline.return_value = '{"Name": "Wi-Fi", "ReceivedBytes": 100, "SentBytes": 50}'
+        mock_process.stdout.readline.return_value = '{"Name": "Wi-Fi", "ReceivedBytes": 100, "SentBytes": 50}'  # noqa: E501
 
         # Act: We can't easily test the loop, so we call the method directly
         # and check if the calculation part is skipped.
-        with patch.object(self.polling_manager, '_calculate_current_speeds') as mock_calculate:
+        with patch.object(self.polling_manager,
+                          '_calculate_current_speeds') as mock_calculate:
             self.polling_manager._speed_poll_loop_powershell()
             mock_calculate.assert_not_called()
 

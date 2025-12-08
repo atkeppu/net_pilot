@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch
 import json
 
-from logic.adapters import get_adapter_details, set_network_adapter_status_windows, disconnect_wifi_and_disable_adapter
+from logic.adapters import (get_adapter_details, set_network_adapter_status_windows,
+                            disconnect_wifi_and_disable_adapter)
 from exceptions import NetworkManagerError
 
 class TestSetAdapterStatus(unittest.TestCase):
@@ -11,7 +12,8 @@ class TestSetAdapterStatus(unittest.TestCase):
     """
 
     @patch('logic.adapters.run_ps_command')
-    def test_setNetworkAdapterStatus_whenActionIsEnable_shouldCallEnableNetAdapter(self, mock_run_ps_command):
+    def test_setNetworkAdapterStatus_whenActionIsEnable_shouldCallEnableNetAdapter(
+            self, mock_run_ps_command):
         """Test a successful call to enable an adapter."""
         # Arrange
         adapter_name = "Wi-Fi"
@@ -25,7 +27,8 @@ class TestSetAdapterStatus(unittest.TestCase):
         mock_run_ps_command.assert_called_once_with(expected_script)
 
     @patch('logic.adapters.run_ps_command')
-    def test_setNetworkAdapterStatus_whenActionIsDisable_shouldCallDisableNetAdapter(self, mock_run_ps_command):
+    def test_setNetworkAdapterStatus_whenActionIsDisable_shouldCallDisableNetAdapter(
+            self, mock_run_ps_command):
         """Test a successful call to disable an adapter."""
         # Arrange
         adapter_name = "Ethernet"
@@ -44,7 +47,8 @@ class TestSetAdapterStatus(unittest.TestCase):
             set_network_adapter_status_windows("Wi-Fi", "destroy")
 
     @patch('logic.adapters.run_ps_command')
-    def test_setNetworkAdapterStatus_whenAdapterIsAlreadyInState_shouldRaiseNetworkManagerError(self, mock_run_ps_command):
+    def test_setNetworkAdapterStatus_whenAdapterIsAlreadyInState_shouldRaiseNetworkManagerError(
+            self, mock_run_ps_command):
         """Test handling of the 'already in state' error from PowerShell."""
         # Arrange
         error_message = "The object is already in the state 'Enabled'."
@@ -57,7 +61,8 @@ class TestSetAdapterStatus(unittest.TestCase):
         self.assertIn("Adapter 'Wi-Fi' is already enabled", str(cm.exception))
 
     @patch('logic.adapters.run_ps_command')
-    def test_setNetworkAdapterStatus_whenDisablingConnectedWifi_shouldRaiseSpecificError(self, mock_run_ps_command):
+    def test_setNetworkAdapterStatus_whenDisablingConnectedWifi_shouldRaiseSpecificError(
+            self, mock_run_ps_command):
         """Test handling of the 'cannot be disabled' error when connected."""
         # Arrange
         error_message = "The adapter cannot be disabled while it is connected."
@@ -71,7 +76,8 @@ class TestSetAdapterStatus(unittest.TestCase):
         self.assertIn("Cannot disable 'Wi-Fi' while it is connected", str(cm.exception))
 
     @patch('logic.adapters.run_ps_command')
-    def test_setNetworkAdapterStatus_onGenericError_shouldWrapExceptionWithContext(self, mock_run_ps_command):
+    def test_setNetworkAdapterStatus_onGenericError_shouldWrapExceptionWithContext(
+            self, mock_run_ps_command):
         """Test that a generic NetworkManagerError is wrapped with more context."""
         # Arrange
         original_error = NetworkManagerError("A generic PowerShell error occurred.")
@@ -92,7 +98,8 @@ class TestGetAdapterDetails(unittest.TestCase):
     """
 
     @patch('logic.adapters.run_external_ps_script')
-    def test_getAdapterDetails_withValidJsonList_shouldParseAndReturnList(self, mock_run_script):
+    def test_getAdapterDetails_withValidJsonList_shouldParseAndReturnList(
+            self, mock_run_script):
         """Test successful parsing of a JSON list of adapters."""
         # Arrange
         mock_data = [
@@ -110,7 +117,8 @@ class TestGetAdapterDetails(unittest.TestCase):
         self.assertEqual(result[1]['admin_state'], 'Disabled')
 
     @patch('logic.adapters.run_external_ps_script')
-    def test_getAdapterDetails_withInvalidJson_shouldRaiseNetworkManagerError(self, mock_run_script):
+    def test_getAdapterDetails_withInvalidJson_shouldRaiseNetworkManagerError(
+            self, mock_run_script):
         """Test that invalid JSON from PowerShell raises a NetworkManagerError."""
         # Arrange
         mock_run_script.return_value = "This is not valid JSON"
@@ -131,7 +139,8 @@ class TestDisconnectAndDisable(unittest.TestCase):
     @patch('logic.adapters.get_current_wifi_details')
     @patch('logic.adapters.disconnect_wifi')
     @patch('time.sleep')
-    def test_disconnectAndDisable_onSuccess_shouldCompleteAllSteps(self, mock_sleep, mock_disconnect, mock_get_details, mock_set_status):
+    def test_disconnectAndDisable_onSuccess_shouldCompleteAllSteps(
+            self, mock_sleep, mock_disconnect, mock_get_details, mock_set_status):
         """Test the ideal success case where disconnect is confirmed quickly."""
         # Arrange: Simulate that after one check, the connection is gone.
         mock_get_details.side_effect = [{'ssid': 'Test'}, None]
@@ -150,7 +159,8 @@ class TestDisconnectAndDisable(unittest.TestCase):
     @patch('logic.adapters.get_current_wifi_details')
     @patch('logic.adapters.disconnect_wifi')
     @patch('time.sleep')
-    def test_disconnectAndDisable_whenDisconnectTimesOut_shouldRaiseError(self, mock_sleep, mock_disconnect, mock_get_details):
+    def test_disconnectAndDisable_whenDisconnectTimesOut_shouldRaiseError(
+            self, mock_sleep, mock_disconnect, mock_get_details):
         """Test that an error is raised if disconnection is not confirmed in time."""
         # Arrange: Simulate that the connection never drops.
         mock_get_details.return_value = {'ssid': 'Test'}

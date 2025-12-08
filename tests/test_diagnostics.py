@@ -30,7 +30,8 @@ class TestTraceroute(unittest.TestCase):
         # Assert
         self.assertEqual(result, expected)
         mock_run_ps_command.assert_called_once()
-        self.assertIn("Test-NetConnection -ComputerName '8.8.8.8' -TraceRoute", mock_run_ps_command.call_args[0][0])
+        self.assertIn("Test-NetConnection -ComputerName '8.8.8.8' -TraceRoute",  # noqa: E501
+                      mock_run_ps_command.call_args[0][0])  # noqa: E501
 
     def test_run_traceroute_invalid_target(self):
         """Test that an invalid target raises a NetworkManagerError."""
@@ -109,7 +110,8 @@ class TestGetNetworkDiagnostics(unittest.TestCase):
         # Arrange: all external calls fail
         mock_requests_get.side_effect = requests.RequestException("Connection failed")
         # Simulate both ipconfig and ping failing
-        mock_run_command.side_effect = NetworkManagerError("Command failed")
+        mock_run_command.side_effect = NetworkManagerError(  # noqa: E501
+            "Command failed")  # noqa: E501
 
         # Act
         result = get_network_diagnostics()
@@ -135,9 +137,9 @@ class TestGetNetworkDiagnostics(unittest.TestCase):
 """.encode('oem')
         # Simulate successful ipconfig, then successful pings
         mock_run_command.side_effect = [
-            MagicMock(stdout=ipconfig_output), # for ipconfig
-            MagicMock(stdout=b"Average = 10ms"), # for gateway ping
-            MagicMock(stdout=b"Average = 25ms")  # for external ping
+            MagicMock(stdout=ipconfig_output),  # for ipconfig  # noqa: E501
+            MagicMock(stdout=b"Average = 10ms"),  # for gateway ping  # noqa: E501
+            MagicMock(stdout=b"Average = 25ms")   # for external ping  # noqa: E501
         ]
 
         result = get_network_diagnostics(external_target="example.com")

@@ -2,7 +2,8 @@ import unittest
 import json
 from unittest.mock import patch
 
-from logic.wifi import _parse_netsh_wlan_output, get_current_wifi_details, get_saved_wifi_profiles, list_wifi_networks, disconnect_wifi
+from logic.wifi import (_parse_netsh_wlan_output, get_current_wifi_details,
+                        get_saved_wifi_profiles, list_wifi_networks, disconnect_wifi)
 from exceptions import NetworkManagerError
 
 class TestWifiParser(unittest.TestCase):
@@ -31,8 +32,10 @@ SSID 2 : CoffeeShop-Guest
          Signal             : 75%
 """
         expected = [
-            {'ssid': 'MyHomeNetwork', 'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '99'},
-            {'ssid': 'CoffeeShop-Guest', 'authentication': 'Open', 'encryption': 'None', 'signal': '75'}
+            {'ssid': 'MyHomeNetwork',
+             'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '99'},
+            {'ssid': 'CoffeeShop-Guest',
+             'authentication': 'Open', 'encryption': 'None', 'signal': '75'}
         ]
         result = _parse_netsh_wlan_output(mock_output)
         self.assertEqual(result, expected)
@@ -53,7 +56,8 @@ SSID 2 : MyHomeNetwork
          Signal             : 50%
 """
         expected = [
-            {'ssid': 'MyHomeNetwork', 'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '99'}
+            {'ssid': 'MyHomeNetwork',
+             'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '99'}
         ]
         result = _parse_netsh_wlan_output(mock_output)
         self.assertEqual(result, expected)
@@ -67,7 +71,8 @@ SSID 1 : HiddenNetwork
     Encryption              : CCMP
 """
         expected = [
-            {'ssid': 'HiddenNetwork', 'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': 'N/A'}
+            {'ssid': 'HiddenNetwork',
+             'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': 'N/A'}
         ]
         result = _parse_netsh_wlan_output(mock_output)
         self.assertEqual(result, expected)
@@ -82,7 +87,8 @@ SSID 1 :
          Signal             : 80%
 """
         expected = [
-            {'ssid': '(Hidden Network)', 'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '80'}
+            {'ssid': '(Hidden Network)',
+             'authentication': 'WPA2-Personal', 'encryption': 'CCMP', 'signal': '80'}
         ]
         result = _parse_netsh_wlan_output(mock_output)
         self.assertEqual(result, expected)
@@ -214,8 +220,7 @@ class TestGetSavedWifiProfiles(unittest.TestCase):
         mock_data = [
             {"ssid": "MyHomeNetwork", "password": "MyPassword123"},
             {"ssid": "CoffeeShop-Guest", "password": "N/A"},
-            {"ssid": "Work-Network", "password": "(Password not stored or accessible)"}
-        ]
+            {"ssid": "Work-Network", "password": "(Password not stored or accessible)"}]
         mock_run_ps_command.return_value = json.dumps(mock_data)
 
         # Act

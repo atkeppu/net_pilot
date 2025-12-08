@@ -21,10 +21,9 @@ def is_admin() -> bool:
 
 def relaunch_as_admin():
     """
-    Relaunches the current script with administrative privileges using the 'runas' verb.
-    The current script will exit after calling this.
+    Relaunches the current script with administrative privileges using the
+    'runas' verb. The current script will exit after calling this.
     """
-    logger.info("Attempting to relaunch with admin rights...")
     ctypes.windll.shell32.ShellExecuteW(
         None,           # Handle to the parent window
         "runas",        # Verb: run as administrator
@@ -36,9 +35,9 @@ def relaunch_as_admin():
 
 def reset_network_stack():
     """
-    Resets the Winsock Catalog using 'netsh winsock reset'.
-    This action requires a system reboot to complete.
-    Raises NetworkManagerError on failure.
+    Resets the Winsock Catalog using 'netsh winsock reset'. This action
+    requires a system reboot to complete. Raises NetworkManagerError on
+    failure.
     """
     run_system_command(['netsh', 'winsock', 'reset'], "Failed to reset network stack.")
 
@@ -58,22 +57,26 @@ def release_renew_ip():
         # Step 1: Release the current IP address.
         # We use check=False because this command can fail gracefully if an adapter
         # is disconnected or has no IP, which is not a critical error.
-        release_result = run_system_command(['ipconfig', '/release'], "IP address release command finished.", check=False)
+        release_result = run_system_command(
+            ['ipconfig', '/release'], "IP address release command finished.", check=False)
         if release_result.returncode != 0:
             # Decode output safely for inspection. The error is often in stderr.
-            error_output = _safe_decode(release_result.stderr or release_result.stdout).lower()
+            error_output = _safe_decode(
+                release_result.stderr or release_result.stdout).lower()
             
             # These are common, expected "errors" that we can safely ignore.
             non_critical_errors = [
-                "no operation can be performed", # Adapter is disconnected
-                "media is disconnected",         # Cable is unplugged
-                "the system cannot find the file specified" # Can occur in some virtual adapter scenarios
+                "no operation can be performed",  # Adapter is disconnected
+                "media is disconnected",  # Cable is unplugged
+                "the system cannot find the file specified"  # Can occur in some virtual adapter scenarios
             ]
             if any(e in error_output for e in non_critical_errors):
-                logger.info("ipconfig /release failed as expected (no address to release or media disconnected).")
+                logger.info(
+                    "ipconfig /release failed as expected (no address to release or media disconnected).")
             else:
                 # Log any other non-zero exit codes as a warning, but don't stop the process.
-                logger.warning("ipconfig /release finished with an unexpected non-zero exit code. Error: %s", error_output.strip())
+                logger.warning(
+                    "ipconfig /release finished with an unexpected non-zero exit code. Error: %s", error_output.strip())
 
         # Step 2: Renew the IP address. This is the critical step.
         run_system_command(['ipconfig', '/renew'], "Failed to renew IP address.")
@@ -83,13 +86,12 @@ def release_renew_ip():
         error_str = str(e).lower()
         if "unable to contact your dhcp server" in error_str:
             raise NetworkManagerError(
-                "Could not renew IP address: Unable to contact the DHCP server. "
-                "Please check your network connection and router.",
+                "Could not renew IP address: Unable to contact the DHCP server. Please check your network connection and router.",  # noqa: E501
                 code='DHCP_SERVER_UNREACHABLE'
             ) from e
         if "no adapter is in the state permissible" in error_str:
             raise NetworkManagerError(
-                "Could not renew IP address: One or more network adapters are disabled. Please enable them first.",
+                "Could not renew IP address: One or more network adapters are disabled. Please enable them first.",  # noqa: E501
                 code='ADAPTER_DISABLED'
             ) from e
         raise # Re-raise the original, detailed exception for any other errors
@@ -99,10 +101,12 @@ def terminate_process_by_pid(pid: int):
     Terminates a process by its Process ID (PID).
     Raises NetworkManagerError on failure.
     """
-    if pid in [0, 4]: # Do not allow terminating System Idle or System processes
-        raise NetworkManagerError("Terminating system-critical processes is not allowed.")
+    if pid in [0, 4]:  # Do not allow terminating System Idle or System processes
+        raise NetworkManagerError(
+            "Terminating system-critical processes is not allowed.")
     try:
-        run_system_command(['taskkill', '/F', '/T', '/PID', str(pid)], f"Failed to terminate process with PID {pid}.")
+        run_system_command(['taskkill', '/F', '/T', '/PID', str(
+            pid)], f"Failed to terminate process with PID {pid}.")
     except NetworkManagerError:
         # Re-raise to keep the original detailed message from the helper.
         raise

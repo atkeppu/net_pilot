@@ -24,11 +24,13 @@ def _safe_decode(byte_string: bytes | None) -> str:
         except UnicodeDecodeError:
             return _decode_with_encoding(byte_string, 'ascii', errors='replace').strip().replace('\ufffd', '?')
 
-def run_system_command(command: list[str], error_message_prefix: str, check: bool = True, cwd: str | None = None, timeout: int = 10):
+def run_system_command(command: list[str], error_message_prefix: str,
+                       check: bool = True, cwd: str | None = None, timeout: int = 10):
     """
     A helper function to run a system command and handle errors consistently.
     Raises NetworkManagerError on failure.
     """
+    # noqa: E501
     # To avoid logging a huge base64 string, shorten the log message for encoded commands.
     if "-EncodedCommand" in command:
         try:
@@ -71,13 +73,15 @@ def run_system_command(command: list[str], error_message_prefix: str, check: boo
         # Raise a cleaner error for the UI, preferring stderr if available.
         user_error_message = stderr or stdout or "An unknown error occurred."
         raise NetworkManagerError(f"{error_message_prefix}: {user_error_message}") from e
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired as e:  # noqa: E501
         logger.error("System command timed out: %s", " ".join(command))
-        raise NetworkManagerError(f"The operation timed out after {timeout} seconds: {' '.join(command)}") from e
+        raise NetworkManagerError(
+            f"The operation timed out after {timeout} seconds: {' '.join(command)}") from e
     except FileNotFoundError as e:
-        raise NetworkManagerError(f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
+        raise NetworkManagerError(
+            f"Command '{command[0]}' not found. Is it in the system's PATH?") from e
 
-def run_ps_command(script: str, ps_args: list[str] = None, stream_output: bool = False):
+def run_ps_command(script: str, ps_args: list[str] | None = None, stream_output: bool = False):
     """
     Runs a PowerShell script safely using -EncodedCommand.
     Optional ps_args are passed as arguments to the PowerShell script.
@@ -91,7 +95,8 @@ def run_ps_command(script: str, ps_args: list[str] = None, stream_output: bool =
     Raises NetworkManagerError on failure.
     """
     logger.debug("Executing PowerShell script.")
-    encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii') # type: ignore
+    # type: ignore
+    encoded_script = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
     command = ['powershell', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded_script]
     if ps_args:
         command.extend(ps_args)
@@ -99,7 +104,8 @@ def run_ps_command(script: str, ps_args: list[str] = None, stream_output: bool =
     if stream_output:
         return _stream_ps_command(command)
     else:
-        result = run_system_command(command, "PowerShell script execution failed.")
+        result = run_system_command(
+            command, "PowerShell script execution failed.")
         return result.stdout.decode('utf-8', errors='ignore')
 
 def _stream_ps_command(command: list[str]):
@@ -109,10 +115,11 @@ def _stream_ps_command(command: list[str]):
         text=True, encoding='utf-8', errors='ignore',
         shell=False, creationflags=subprocess.CREATE_NO_WINDOW
     ) as process:
-        for line in iter(process.stdout.readline, ''):
-            yield line.strip()
+        if process.stdout:
+            for line in iter(process.stdout.readline, ''):
+                yield line.strip()
 
-def run_external_ps_script(script_name: str, ps_args: list[str] = None) -> str:
+def run_external_ps_script(script_name: str, ps_args: list[str] | None = None) -> str:
     """
     Helper to read and execute an external PowerShell script from the 'scripts' directory.
     """
@@ -132,4 +139,5 @@ def run_external_ps_script(script_name: str, ps_args: list[str] = None) -> str:
 
         return run_ps_command(ps_script)
     except FileNotFoundError as e:
-        raise NetworkManagerError(f"PowerShell script '{script_name}' not found: {e}") from e
+        raise NetworkManagerError(
+            f"PowerShell script '{script_name}' not found: {e}") from e
