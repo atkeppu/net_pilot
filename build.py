@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import json
+from github_integration import generate_changelog
 
 # Define app name directly in the build script to avoid import-related file locks.
 APP_NAME = "NetPilot"
@@ -249,45 +250,6 @@ def create_git_info_file():
             print(f"   ...OK: Tallennettu repository: {repo_name}")
     except (subprocess.CalledProcessError, FileNotFoundError, IndexError):
         print("   ...⚠️ Varoitus: Ei voitu tunnistaa Git-repositorya. Julkaisutoiminto ei välttämättä toimi paketoidussa sovelluksessa.")
-
-def generate_changelog(version: str):
-    """
-    Generates a changelog from git commits since the last tag.
-    Saves the output to dist/CHANGELOG.md.
-    """
-    print("-> Generoidaan muutoslokia (changelog)...")
-    try:
-        # Find the most recent tag. If no tags, it will error out.
-        latest_tag_cmd = ["git", "describe", "--tags", "--abbrev=0"]
-        latest_tag = subprocess.check_output(
-            latest_tag_cmd, text=True, encoding='utf-8',
-            stderr=subprocess.PIPE).strip()
-        print(f"   ...Löytyi edellinen tagi: {latest_tag}")
-        commit_range = f"{latest_tag}..HEAD"
-    except subprocess.CalledProcessError:
-        # No tags found, this is likely the first release. Log all commits.
-        print(
-            "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
-            "kaikista commiteista. (Tämä on normaalia ensimmäisellä julkaisulla)")
-        commit_range = "HEAD"
-
-    try:
-        # Get commit subjects since the last tag in a nice bulleted list
-        # format.
-        log_cmd = ["git", "log", commit_range, "--pretty=format:- %s (%h)"]
-        changelog_content = subprocess.check_output(
-            log_cmd, text=True, encoding='utf-8').strip()
-
-        if not changelog_content:
-            changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
-
-        changelog_path = Path.cwd() / "CHANGELOG.md"  # noqa: E501
-        changelog_path.write_text(
-            f"# Muutokset versiossa {version}\n\n{changelog_content}\n",
-            encoding='utf-8')
-        print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)
 
 def format_size(size_bytes: int) -> str:
     """Formats a size in bytes to a human-readable string (KB, MB)."""

@@ -160,31 +160,39 @@ class TestPollingManagerLoop(unittest.TestCase):
 
     @patch('gui.polling_manager.time.time')
     @patch('gui.polling_manager.get_current_wifi_details')
-    @patch('gui.polling_manager.get_network_diagnostics')
-    def test_subsequent_poll_runs_only_light_tasks(self, mock_get_diag,
-                                                   mock_get_wifi, mock_time):
-        """Test that a subsequent poll (before interval) only runs speed calculation."""
+    @patch('gui.polling_manager.is_network_available')
+    @patch('gui.polling_manager.threading.Thread')
+    def test_poll_loop_respects_network_availability(self, mock_thread, mock_is_network_available,
+                                                     mock_get_wifi, mock_time):
+        """Test that diagnostics are skipped when network is unavailable."""
         # Arrange
         self.polling_manager.diagnostics_interval = 0.1 # Shorten interval for test
-        # Simulate two loop runs: one at t=1000, one at t=1001
-        mock_time.side_effect = [1000.0, 1001.0]
+        # Simulate network being available on the first run, but not the second.
+        mock_is_network_available.side_effect = [True, False]
         
         # Run the loop in a thread and use an event to stop it after two iterations.
         stop_event = threading.Event()
         self.polling_manager.is_running = True  # noqa: E501
+
+        # We need to control the loop iterations manually for this test.
+        # We'll stop it after 2 cycles.
+        call_count = 0
+        def wait_side_effect(timeout):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                stop_event.set()
+
         poll_thread = threading.Thread(
-            target=self.polling_manager._poll_loop, args=(stop_event,))
-        poll_thread.start()
-        
-        # Wait long enough for two cycles
-        time.sleep(self.polling_manager.diagnostics_interval * 1.5)
-        
-        stop_event.set() # Signal the loop to stop
-        poll_thread.join(timeout=1) # Wait for the thread to finish
+            target=self.polling_manager._poll_loop, args=(stop_event,), daemon=True)
+        with patch.object(stop_event, 'wait', side_effect=wait_side_effect):
+            poll_thread.start()
+            poll_thread.join(timeout=1) # Wait for the thread to finish
 
         # Assert
-        # In the main loop, these tasks run on every iteration.
-        self.assertEqual(mock_get_diag.call_count, 2)
+        # The diagnostics thread should only be started ONCE, when network is available.
+        self.assertEqual(mock_thread.call_count, 1)
+        # The light task (wifi details) should run on both iterations.
         self.assertEqual(mock_get_wifi.call_count, 2)
 
     @patch('gui.polling_manager.subprocess.Popen')

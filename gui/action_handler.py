@@ -199,7 +199,7 @@ class GitHubActionsHandler(BaseActionHandler):
         """
         # Find the assets to upload. The build script places them in the 'dist' folder.
         version = tag.lstrip('v')
-        dist_path = app_logic.get_dist_path()
+        dist_path = self.app_logic.get_project_or_exe_root() / "dist"
 
         # Find assets dynamically instead of constructing an expected filename.
         # This is more robust if the version is changed in the dialog.
@@ -248,11 +248,10 @@ class GitHubActionsHandler(BaseActionHandler):
         Worker function that calls the changelog generation logic and then
         schedules the UI update via the queue.
         """
-        # This reuses the logic from the build script.
-        # Note: This creates a dependency on a function inside build.py.
-        from build import generate_changelog
-        generate_changelog(version)
-        changelog_content = (Path.cwd() / "CHANGELOG.md").read_text(encoding='utf-8')
+        self.app_logic.generate_changelog(version)
+        # Use the centralized path helper to ensure the correct path is used.
+        changelog_path = self.app_logic.get_project_or_exe_root() / "CHANGELOG.md"
+        changelog_content = changelog_path.read_text(encoding='utf-8')
         self.context.task_queue.put({'type': 'ui_update', 'func': lambda: update_callback(changelog_content)})
 
 class ActionHandler:

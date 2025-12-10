@@ -8,7 +8,7 @@ logic package.
 """
 
 # From logger_setup
-from logger_setup import get_dist_path
+from logger_setup import get_project_or_exe_root
 
 # From logic.system
 from logic.system import (
@@ -24,6 +24,7 @@ from logic.system import (
 from logic.adapters import (
     disconnect_wifi_and_disable_adapter,
     get_adapter_details,
+    is_network_available,
     set_network_adapter_status_windows,
 )
 
@@ -53,6 +54,7 @@ from logic.wifi_profile_manager import (
 # From github_integration
 from github_integration import (
     create_github_release,
+    generate_changelog,
     get_repo_from_git_config,
     check_github_cli_auth
 )
@@ -60,7 +62,7 @@ from github_integration import (
 # Explicitly define the public API of this facade module.
 __all__ = [
     # logger_setup
-    'get_dist_path',
+    'get_project_or_exe_root',
     # system
     'flush_dns_cache',
     'is_admin',
@@ -71,6 +73,7 @@ __all__ = [
     # adapters
     'disconnect_wifi_and_disable_adapter',
     'get_adapter_details',
+    'is_network_available',
     'set_network_adapter_status_windows',
     # diagnostics
     'get_active_connections',
@@ -88,6 +91,7 @@ __all__ = [
     'delete_wifi_profile',
     # github_integration
     'create_github_release',
+    'generate_changelog',
     'get_repo_from_git_config',
     'check_github_cli_auth'
 ]

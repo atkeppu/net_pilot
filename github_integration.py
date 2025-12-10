@@ -159,3 +159,75 @@ def create_github_release(tag: str, title: str, notes: str,
         # The original error details from 'gh' are included.
         raise NetworkManagerError(
             f"Failed to create GitHub release for tag {tag}:\n\n{str(e)}") from e
+
+def generate_changelog(version: str):
+    """
+    Generates a changelog from git commits since the last tag.
+    Saves the output to CHANGELOG.md in the project root.
+    """
+    from logic.command_utils import run_system_command
+    print("-> Generoidaan muutoslokia (changelog)...")
+    try:
+        # Find the most recent tag. If no tags, it will error out.
+        latest_tag_result = run_system_command(
+            ["git", "describe", "--tags", "--abbrev=0"], "Could not find latest tag")
+        latest_tag = latest_tag_result.stdout.decode('utf-8').strip()
+        print(f"   ...Löytyi edellinen tagi: {latest_tag}")
+        commit_range = f"{latest_tag}..HEAD"
+    except NetworkManagerError:
+        # No tags found, this is likely the first release. Log all commits.
+        print(
+            "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
+            "kaikista commiteista. (Tämä on normaalia ensimmäisellä julkaisulla)")
+        commit_range = "HEAD"
+
+    try:
+        # Get commit subjects since the last tag in a nice bulleted list format.
+        log_result = run_system_command(
+            ["git", "log", commit_range, "--pretty=format:- %s (%h)"], "Could not generate changelog")
+        changelog_content = log_result.stdout.decode('utf-8').strip()
+
+        if not changelog_content:
+            changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
+
+        changelog_path = get_project_or_exe_root() / "CHANGELOG.md"
+        changelog_path.write_text(f"# Muutokset versiossa {version}\n\n{changelog_content}\n", encoding='utf-8')
+        print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
+    except NetworkManagerError as e:
+        print(f"   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa. Virhe: {e}", file=sys.stderr)
+
+def generate_changelog(version: str):
+    """
+    Generates a changelog from git commits since the last tag.
+    Saves the output to CHANGELOG.md in the project root.
+    """
+    from logic.command_utils import run_system_command
+    print("-> Generoidaan muutoslokia (changelog)...")
+    try:
+        # Find the most recent tag. If no tags, it will error out.
+        latest_tag_result = run_system_command(
+            ["git", "describe", "--tags", "--abbrev=0"], "Could not find latest tag")
+        latest_tag = latest_tag_result.stdout.decode('utf-8').strip()
+        print(f"   ...Löytyi edellinen tagi: {latest_tag}")
+        commit_range = f"{latest_tag}..HEAD"
+    except NetworkManagerError:
+        # No tags found, this is likely the first release. Log all commits.
+        print(
+            "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
+            "kaikista commiteista. (Tämä on normaalia ensimmäisellä julkaisulla)")
+        commit_range = "HEAD"
+
+    try:
+        # Get commit subjects since the last tag in a nice bulleted list format.
+        log_result = run_system_command(
+            ["git", "log", commit_range, "--pretty=format:- %s (%h)"], "Could not generate changelog")
+        changelog_content = log_result.stdout.decode('utf-8').strip()
+
+        if not changelog_content:
+            changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
+
+        changelog_path = get_project_or_exe_root() / "CHANGELOG.md"
+        changelog_path.write_text(f"# Muutokset versiossa {version}\n\n{changelog_content}\n", encoding='utf-8')
+        print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
+    except NetworkManagerError as e:
+        print(f"   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa. Virhe: {e}", file=sys.stderr)

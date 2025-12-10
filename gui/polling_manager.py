@@ -4,7 +4,7 @@ import time
 import logging
 import json
 
-from app_logic import get_network_diagnostics, get_current_wifi_details
+from app_logic import get_network_diagnostics, get_current_wifi_details, is_network_available
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +150,15 @@ class PollingManager:
         while self.is_running and not stop_event.is_set():
             try:
                 # --- Task 2: Periodic heavy diagnostics ---
-                logger.info("Starting heavy poll task cycle...")
+                if not is_network_available():
+                    logger.debug("Skipping poll cycle: No network connection available.")
+                    # If no network, also clear Wi-Fi status as it's likely stale.
+                    self.task_queue.put({'type': 'wifi_status_update', 'data': None})
+                    continue # Skip iteration if no network available
+
+                logger.debug("Starting heavy poll task cycle...")
                 
-                # Run diagnostics in a separate thread to not block this loop
+                # Run heavy diagnostics in a separate thread to not block this loop
                 threading.Thread(target=self._fetch_diagnostics_and_queue, daemon=True).start()
                 
                 # Also fetch light tasks here to keep them in sync

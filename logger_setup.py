@@ -60,13 +60,6 @@ def get_project_or_exe_root() -> Path:
         # Running as a script
         return Path(sys.argv[0]).resolve().parent
 
-def get_dist_path() -> Path:
-    """Returns the absolute path to the 'dist' directory."""
-    if getattr(sys, 'frozen', False):
-        return get_project_or_exe_root()
-    return get_project_or_exe_root() / 'dist'
-
-
 def setup_logging() -> Path | None:
     """
     Configures logging with a RotatingFileHandler and a console handler.
@@ -80,8 +73,8 @@ def setup_logging() -> Path | None:
     """
     log_file_path: Path = get_log_file_path()
     log_formatter = logging.Formatter(
-        # Lisätään funktion nimi ja rivinumero lokiviesteihin paremman kontekstin saamiseksi.
-        '%(asctime)s - %(levelname)-8s - [%(name)s:%(funcName)s:%(lineno)d] - %(message)s'
+        # Standard log format with module, function, and line number for better context.
+        '%(asctime)s - %(name)s - %(levelname)-8s - [%(funcName)s:%(lineno)d] - %(message)s'
     )
     root_logger = logging.getLogger()
     # Set level from environment variable, defaulting to INFO.

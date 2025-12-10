@@ -20,15 +20,6 @@ def get_network_diagnostics(external_target: str = "8.8.8.8") -> dict:
         "DNS Servers": "N/A",
     }
 
-    # 1. Get Public IP using requests library (more reliable than Invoke-RestMethod)
-    try:
-        response = requests.get('https://api.ipify.org', timeout=2)
-        response.raise_for_status()
-        diagnostics["Public IP"] = response.text.strip()
-    except requests.RequestException as e:
-        logger.warning("Could not fetch public IP: %s", e)
-
-    # 2. Get Gateway and DNS from ipconfig
     try:
         ipconfig_output = run_system_command(
             ['ipconfig', '/all'], "Failed to run ipconfig").stdout.decode('oem', errors='ignore')
@@ -48,20 +39,31 @@ def get_network_diagnostics(external_target: str = "8.8.8.8") -> dict:
     except NetworkManagerError as e:
         logger.warning("Could not parse ipconfig output: %s", e)
 
-    # 3. Get Latencies using system ping
-    def get_latency(target: str) -> str:
-        if not target or target == "0.0.0.0":
-            return "N/A"
+    # --- Online-Only Checks ---
+    # Only perform these checks if a gateway was found, indicating a valid local network connection.
+    if diagnostics["Gateway"] != "N/A":
+        # 1. Get Public IP using requests library
         try:
-            ping_output = run_system_command(
-                ['ping', '-n', '1', '-w', '1000', target], "Ping failed").stdout.decode('oem', errors='ignore')
-            match = re.search(r"Average = (\d+)ms", ping_output)
-            return f"{match.group(1)} ms" if match else "No Response"
-        except NetworkManagerError:
-            return "No Response"
+            response = requests.get('https://api.ipify.org', timeout=2)
+            response.raise_for_status()
+            diagnostics["Public IP"] = response.text.strip()
+        except requests.RequestException as e:
+            logger.warning("Could not fetch public IP: %s", e)
 
-    diagnostics["Gateway Latency"] = get_latency(diagnostics["Gateway"])
-    diagnostics["External Latency"] = get_latency(external_target)
+        # 2. Get Latencies using system ping
+        def get_latency(target: str) -> str:
+            if not target or target == "0.0.0.0":
+                return "N/A"
+            try:
+                ping_output = run_system_command(
+                    ['ping', '-n', '1', '-w', '1000', target], "Ping failed").stdout.decode('oem', errors='ignore')
+                match = re.search(r"Average = (\d+)ms", ping_output)
+                return f"{match.group(1)} ms" if match else "No Response"
+            except NetworkManagerError:
+                return "No Response"
+
+        diagnostics["Gateway Latency"] = get_latency(diagnostics["Gateway"])
+        diagnostics["External Latency"] = get_latency(external_target)
 
     return diagnostics
 

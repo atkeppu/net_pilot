@@ -29,9 +29,9 @@ def get_adapter_details() -> list[dict]:
             adapters = [adapters]
 
         for adapter in adapters:
-            # NetConnectionStatus from Win32_NetworkAdapter is the most reliable administrative state.
-            # A value of 4 means 'Disabled'. All other values mean it's administratively enabled.
-            adapter['admin_state'] = 'Disabled' if adapter.get('NetConnectionStatus') == 4 else 'Enabled'
+            # The 'Status' from Get-NetAdapter is the most reliable administrative state.
+            # It can be 'Up', 'Down', 'Disabled', etc. We simplify this for the UI.
+            adapter['admin_state'] = 'Disabled' if adapter.get('Status') == 'Disabled' else 'Enabled'
         return adapters
     except (json.JSONDecodeError, NetworkManagerError) as e:
         raise NetworkManagerError(f"Failed to parse adapter details from PowerShell: {e}") from e
@@ -100,3 +100,20 @@ def disconnect_wifi_and_disable_adapter(adapter_name: str):
     set_network_adapter_status_windows(adapter_name, 'disable')
 
     yield f"Successfully disabled '{adapter_name}'."
+
+def is_network_available() -> bool:
+    """
+    Checks if any network adapter is enabled and has a valid IP address.
+    Returns True if a network is available, False otherwise.
+    """
+    try:
+        adapters = get_adapter_details()
+        for adapter in adapters:
+            if adapter.get('admin_state') == 'Enabled' and adapter.get('IPv4Address'):
+                # Found an active and enabled adapter.
+                return True
+        # No active adapters found.
+        return False
+    except NetworkManagerError:
+        # Assume no network if adapter details cannot be retrieved.
+        return False
