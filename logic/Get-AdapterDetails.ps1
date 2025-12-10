@@ -24,6 +24,17 @@ function Get-SafeProperty {
     $InputObject | Select-Object -First 1
 }
 
+# Helper function to convert CIM DATETIME string (e.g., '20231027120000.000000+180')
+# to a more readable ISO 8601 format (e.g., '2023-10-27').
+function Convert-CimDateTime {
+    param(
+        [string]$CimDateTime
+    )
+    if ($CimDateTime -and $CimDateTime.Length -ge 8) {
+        return [datetime]::ParseExact($CimDateTime.Substring(0, 8), 'yyyyMMdd', $null).ToString('yyyy-MM-dd')
+    }
+    return $null
+}
 try {
     # Get-CimInstance is a modern and efficient way to query WMI.
     # We filter for physical adapters to exclude virtual ones.
@@ -43,10 +54,11 @@ try {
                 Write-Warning "Could not retrieve IP configuration for adapter '$($netAdapter.Name)'."
             }
 
-            $driverInfo = $netAdapter | Get-NetAdapterHardwareInfo -ErrorAction SilentlyContinue
-            if (-not $driverInfo) {
-                Write-Warning "Could not retrieve driver information for adapter '$($netAdapter.Name)'."
-            }
+            # --- VIANJÄLJITYSTULOSTE ---
+            # Käytetään Write-Error -Streamia, jotta viestit näkyvät Pythonin stderr-lokissa.
+            Write-Error "DEBUG: Käsitellään sovitinta: $($netAdapter.Name)"
+            Write-Error "DEBUG:   - Raaka DriverVersion WMI:stä: $($adapter.DriverVersion)"
+            Write-Error "DEBUG:   - Raaka DriverDate WMI:stä: $($adapter.DriverDate)"
 
             # Construct a custom object with the collected details.
             # Provide default null values for properties that might not exist to ensure consistent object structure.
@@ -58,8 +70,8 @@ try {
                 NetConnectionStatus  = $adapter.NetConnectionStatus
                 IPv4Address          = $ipConfig.IPv4Address.IPAddress | Get-SafeProperty
                 IPv6Address          = $ipConfig.IPv6Address.IPAddress | Get-SafeProperty
-                DriverVersion        = $driverInfo.DriverVersion | Get-SafeProperty
-                DriverDate           = $driverInfo.DriverDate | Get-SafeProperty
+                DriverVersion        = $adapter.DriverVersion
+                DriverDate           = Convert-CimDateTime -CimDateTime $adapter.DriverDate
             }
         }
         catch {

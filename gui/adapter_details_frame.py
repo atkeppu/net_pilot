@@ -25,10 +25,10 @@ class AdapterDetailsFrame(ttk.LabelFrame):
             ('details_ipv4', 'IPv4Address'),
             ('details_ipv6', 'IPv6Address'),
             ('details_link_speed', 'LinkSpeed', lambda speed: f"{int(speed) / 1_000_000:.0f} Mbps" if isinstance(speed, (int, float)) else (speed or "0")),
-            ('details_download_speed', 'download_speed', format_speed), # Special key for polled data
-            ('details_upload_speed', 'upload_speed', format_speed),     # Special key for polled data
-            ('details_driver_version', 'DriverVersion'),
-            ('details_driver_date', 'DriverDate'),
+            ('details_download_speed', 'download_speed', format_speed),
+            ('details_upload_speed', 'upload_speed', format_speed),
+            ('details_driver_version', 'DriverVersion'), # Matches the key from PowerShell
+            ('details_driver_date', 'DriverDate'),       # Matches the key from PowerShell
         ]
 
         self.details_labels = {}

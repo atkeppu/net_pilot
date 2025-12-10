@@ -28,9 +28,12 @@ def get_adapter_details() -> list[dict]:
             adapters = [adapters]
 
         for adapter in adapters:
-            # NetConnectionStatus from Win32_NetworkAdapter is the most reliable administrative state.
-            # A value of 4 means 'Disabled'. All other values mean it's administratively enabled.
-            adapter['admin_state'] = 'Disabled' if adapter.get('NetConnectionStatus') == 4 else 'Enabled'
+            # Determine the administrative state. The 'Disabled' state is explicitly
+            # indicated by NetConnectionStatus 5. Other states like 0 (Disconnected)
+            # or 7 (Media disconnected) mean the adapter is administratively enabled
+            # but not currently connected.
+            # See: https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-networkadapter
+            adapter['admin_state'] = 'Disabled' if adapter.get('NetConnectionStatus') == 5 else 'Enabled'
         return adapters
 
     except (json.JSONDecodeError, NetworkManagerError) as e:
@@ -102,22 +105,6 @@ def disconnect_wifi_and_disable_adapter(adapter_name: str):
     set_network_adapter_status_windows(adapter_name, 'disable')
 
     yield f"Successfully disabled '{adapter_name}'."
-
-def is_network_available() -> bool:
-    """
-    Checks if there is any active network connection.
-    This is a lightweight check suitable for frequent polling.
-    """
-    try:
-        # The 'netsh' command is very fast and reliable for this check.
-        result = run_system_command(
-            ["netsh", "interface", "show", "interface"], "Failed to check network availability")
-        output = result.stdout.decode('utf-8', errors='ignore')
-        # Look for any interface that is both 'Enabled' and 'Connected'.
-        return bool(re.search(r"Enabled\s+Connected", output, re.IGNORECASE))
-    except (NetworkManagerError, FileNotFoundError):
-        # If the command fails, assume no connection to be safe.
-        return False
 
 def is_network_available() -> bool:
     """

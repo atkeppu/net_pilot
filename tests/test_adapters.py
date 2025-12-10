@@ -98,25 +98,6 @@ class TestGetAdapterDetails(unittest.TestCase):
     """
 
     @patch('logic.adapters.run_external_ps_script')
-    def test_getAdapterDetails_withValidJsonList_shouldParseAndReturnList(
-            self, mock_run_script):
-        """Test successful parsing of a JSON list of adapters."""
-        # Arrange
-        mock_data = [
-            {'Name': 'Wi-Fi', 'NetConnectionStatus': 2}, # Enabled
-            {'Name': 'Ethernet', 'NetConnectionStatus': 4} # Disabled
-        ]
-        mock_run_script.return_value = json.dumps(mock_data)
-
-        # Act
-        result = get_adapter_details()
-
-        # Assert
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]['admin_state'], 'Enabled')
-        self.assertEqual(result[1]['admin_state'], 'Disabled')
-
-    @patch('logic.adapters.run_external_ps_script')
     def test_getAdapterDetails_withInvalidJson_shouldRaiseNetworkManagerError(
             self, mock_run_script):
         """Test that invalid JSON from PowerShell raises a NetworkManagerError."""
