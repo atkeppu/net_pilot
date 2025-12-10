@@ -51,3 +51,13 @@ Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää s
 *   **Tila:** Harkinnassa.
 *   **Tehtävä:** Tutkia ja mahdollisesti ottaa käyttöön `Trunk.io`-työkalu.
 *   **Miksi:** Yhtenäistää ja yksinkertaistaa lintereiden, formaattereiden ja muiden koodinlaadun työkalujen hallintaa. Nopeuttaa paikallista palautetta kehittäjälle (pre-commit hooks) ja parantaa CI-prosessin tehokkuutta.
+
+### 7. Käyttöliittymän tilan päivitysongelmat
+*   **Tila:** Tiedossa.
+*   **Tehtävä:** Korjata bugi, jossa verkkosovittimen tila (esim. "käytössä" / "pois käytöstä") ei päivity luotettavasti käyttöliittymässä heti toimenpiteen jälkeen.
+*   **Miksi:** Varmistaa, että käyttöliittymä näyttää aina järjestelmän todellisen tilan, mikä parantaa käyttäjäkokemusta ja luotettavuutta.
+
+### 8. Diagnostiikan älykkyyden parantaminen
+*   **Tila:** Suunnitteilla.
+*   **Tehtävä:** Estää diagnostiikkatoimintojen (kuten yhdyskäytävän ja ulkoisen kohteen ping-testit) suorittaminen, jos sovellus havaitsee, ettei yksikään verkkosovitin ole "Enabled"-tilassa tai yhteydessä verkkoon.
+*   **Miksi:** Vähentää turhia verkkokyselyitä ja virhetilanteita, kun verkkoyhteyttä ei selvästi ole saatavilla. Parantaa sovelluksen reagointikykyä ja vähentää resurssien käyttöä.
