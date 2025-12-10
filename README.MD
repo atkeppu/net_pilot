@@ -91,6 +91,15 @@ Projekti käyttää `mypy`-työkalua koodin tyyppiturvallisuuden varmistamiseksi
     mypy .
     ```
 
+### Lokituksen formaatin vaihtaminen
+
+Voit vaihtaa lokitiedoston (`logs/app.log`) formaatin ihmisluettavasta tekstistä koneellisesti luettavaksi JSON-formaatiksi asettamalla ympäristömuuttujan `LOG_FORMAT`.
+
+**Esimerkki (PowerShell):**
+```powershell
+$env:LOG_FORMAT="json"; python main.py
+```
+
 ### Sovelluksen rakentaminen (.exe)
 
 Voit paketoida sovelluksen yhdeksi `.exe`-tiedostoksi `build.py`-skriptillä.

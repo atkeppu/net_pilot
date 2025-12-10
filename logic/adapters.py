@@ -1,11 +1,9 @@
 import json
 import logging
 import time
-import os
 
 from exceptions import NetworkManagerError
 from .command_utils import run_external_ps_script, run_ps_command
-from .wifi import disconnect_wifi, get_current_wifi_details
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +27,11 @@ def get_adapter_details() -> list[dict]:
             adapters = [adapters]
 
         for adapter in adapters:
-            # The 'Status' from Get-NetAdapter is the most reliable administrative state.
-            # It can be 'Up', 'Down', 'Disabled', etc. We simplify this for the UI.
-            adapter['admin_state'] = 'Disabled' if adapter.get('Status') == 'Disabled' else 'Enabled'
+            # NetConnectionStatus from Win32_NetworkAdapter is the most reliable administrative state.
+            # A value of 4 means 'Disabled'. All other values mean it's administratively enabled.
+            adapter['admin_state'] = 'Disabled' if adapter.get('NetConnectionStatus') == 4 else 'Enabled'
         return adapters
+
     except (json.JSONDecodeError, NetworkManagerError) as e:
         raise NetworkManagerError(f"Failed to parse adapter details from PowerShell: {e}") from e
 
@@ -56,6 +55,8 @@ def _handle_adapter_status_error(error: NetworkManagerError, adapter_name: str, 
     # For all other errors, re-raise a generic but informative exception.
     raise NetworkManagerError(
         f"Failed to {action} adapter '{adapter_name}':\n{error}") from error
+
+from .wifi import disconnect_wifi, get_current_wifi_details
 
 def set_network_adapter_status_windows(adapter_name: str, action: str):
     """
@@ -103,17 +104,15 @@ def disconnect_wifi_and_disable_adapter(adapter_name: str):
 
 def is_network_available() -> bool:
     """
-    Checks if any network adapter is enabled and has a valid IP address.
-    Returns True if a network is available, False otherwise.
+    Checks if there is any active network connection.
+    This is a lightweight check suitable for frequent polling.
     """
     try:
-        adapters = get_adapter_details()
-        for adapter in adapters:
-            if adapter.get('admin_state') == 'Enabled' and adapter.get('IPv4Address'):
-                # Found an active and enabled adapter.
-                return True
-        # No active adapters found.
-        return False
-    except NetworkManagerError:
-        # Assume no network if adapter details cannot be retrieved.
+        # The 'netsh' command is very fast and reliable for this check.
+        result = run_system_command(["netsh", "interface", "show", "interface"])
+        output = result.stdout.decode('utf-8', errors='ignore')
+        # Look for any interface that is both 'Enabled' and 'Connected'.
+        return bool(re.search(r"Enabled\s+Connected", output, re.IGNORECASE))
+    except (NetworkManagerError, FileNotFoundError):
+        # If the command fails, assume no connection to be safe.
         return False

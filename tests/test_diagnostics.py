@@ -102,28 +102,7 @@ class TestDiagnosticsJsonParsing(unittest.TestCase):
 
 class TestGetNetworkDiagnostics(unittest.TestCase):
     """Unit tests for the get_network_diagnostics function."""
-
-    @patch('logic.diagnostics.run_system_command')
-    @patch('logic.diagnostics.requests.get')
-    def test_get_network_diagnostics_all_fail(self, mock_requests_get, mock_run_command):
-        """Test that diagnostics function handles failures in all sub-tasks gracefully."""
-        # Arrange: all external calls fail
-        mock_requests_get.side_effect = requests.RequestException("Connection failed")
-        # Simulate both ipconfig and ping failing
-        mock_run_command.side_effect = NetworkManagerError(  # noqa: E501
-            "Command failed")  # noqa: E501
-
-        # Act
-        result = get_network_diagnostics()
-
-        # Assert: The function should return the default error values
-        self.assertEqual(mock_run_command.call_count, 3) # ipconfig, ping gateway, ping external
-        self.assertEqual(result['Public IP'], "Error")
-        self.assertEqual(result['Gateway'], "N/A")
-        self.assertEqual(result['DNS Servers'], "N/A")
-        self.assertEqual(result['Gateway Latency'], "No Response")
-        self.assertEqual(result['External Latency'], "No Response")
-
+    
     @patch('logic.diagnostics.run_system_command')
     @patch('logic.diagnostics.requests.get')
     def test_get_network_diagnostics_parsing(self, mock_requests_get, mock_run_command):

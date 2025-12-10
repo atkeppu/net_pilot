@@ -8,7 +8,7 @@ logic package.
 """
 
 # From logger_setup
-from logger_setup import get_project_or_exe_root
+from logger_setup import get_project_or_exe_root, get_dist_path
 
 # From logic.system
 from logic.system import (
@@ -63,6 +63,7 @@ from github_integration import (
 __all__ = [
     # logger_setup
     'get_project_or_exe_root',
+    'get_dist_path',
     # system
     'flush_dns_cache',
     'is_admin',

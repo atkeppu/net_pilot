@@ -54,8 +54,8 @@ try {
                 Name                 = $netAdapter.Name
                 InterfaceDescription = $adapter.Description
                 MacAddress           = $adapter.MACAddress
-                LinkSpeed            = $netAdapter.LinkSpeed # This is the potential speed
-                Status               = $netAdapter.Status # 'Up', 'Down', 'Disabled'. This is the reliable administrative state.
+                LinkSpeed            = $netAdapter.LinkSpeed
+                NetConnectionStatus  = $adapter.NetConnectionStatus
                 IPv4Address          = $ipConfig.IPv4Address.IPAddress | Get-SafeProperty
                 IPv6Address          = $ipConfig.IPv6Address.IPAddress | Get-SafeProperty
                 DriverVersion        = $driverInfo.DriverVersion | Get-SafeProperty

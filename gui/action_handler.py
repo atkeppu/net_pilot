@@ -199,7 +199,7 @@ class GitHubActionsHandler(BaseActionHandler):
         """
         # Find the assets to upload. The build script places them in the 'dist' folder.
         version = tag.lstrip('v')
-        dist_path = self.app_logic.get_project_or_exe_root() / "dist"
+        dist_path = self.app_logic.get_dist_path()
 
         # Find assets dynamically instead of constructing an expected filename.
         # This is more robust if the version is changed in the dialog.

@@ -137,12 +137,14 @@ class PollingManager:
         A single, unified polling loop that handles all heavy data fetching.
         It runs the adapter refresh once, and other tasks periodically.
         """
-        logger.info("Starting main poll loop.")
+        logger.info("Starting main poll loop.") # noqa: E501
         
-        # --- Task 1: One-time adapter list refresh ---
+        # --- Task 1: One-time adapter list refresh on startup ---
         try:
             logger.info("Performing initial adapter list refresh...")
-            self.controller.refresh_adapter_list()
+            # Schedule a slightly delayed refresh. This helps resolve a race condition on startup
+            # where Windows may initially report an incorrect status for Wi-Fi adapters.
+            self.context.root.after(250, self.controller.refresh_adapter_list)
             logger.info("...initial adapter list refresh complete.")
         except Exception:
             logger.error("Initial adapter list refresh failed.", exc_info=True)
@@ -153,25 +155,20 @@ class PollingManager:
                 if not is_network_available():
                     logger.debug("Skipping poll cycle: No network connection available.")
                     # If no network, also clear Wi-Fi status as it's likely stale.
-                    self.task_queue.put({'type': 'wifi_status_update', 'data': None})
+                    if self.controller.get_current_wifi_details() is not None:
+                        self.task_queue.put({'type': 'wifi_status_update', 'data': None})
                     continue # Skip iteration if no network available
 
                 logger.debug("Starting heavy poll task cycle...")
                 
-                # Run heavy diagnostics in a separate thread to not block this loop
-                threading.Thread(target=self._fetch_diagnostics_and_queue, daemon=True).start()
+                # --- Task 2a: Heavy diagnostics ---
+                diag_data = get_network_diagnostics(external_target=self.context.get_ping_target())
+                self.task_queue.put({'type': 'diagnostics_update', 'data': diag_data})
                 
-                # Also fetch light tasks here to keep them in sync
+                # --- Task 2b: Wi-Fi status ---
                 wifi_data = get_current_wifi_details()
                 self.task_queue.put({'type': 'wifi_status_update', 'data': wifi_data})
             except Exception:
                 logger.error("Main polling loop encountered an error.", exc_info=True)
             finally:
                 stop_event.wait(self.diagnostics_interval)
-
-    def _fetch_diagnostics_and_queue(self):
-        """Fetches network diagnostics and puts the result into the task queue."""
-        logger.debug("Fetching network diagnostics...")
-        diag_data = get_network_diagnostics(external_target=self.context.get_ping_target())
-        self.task_queue.put({'type': 'diagnostics_update', 'data': diag_data})
-        logger.debug("...diagnostics fetched.")

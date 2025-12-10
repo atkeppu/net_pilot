@@ -3,6 +3,8 @@ import logging.handlers
 import os
 import sys
 from pathlib import Path
+import json
+import traceback
 
 # --- Logging Configuration ---
 
@@ -17,6 +19,27 @@ LOG_FILE_NAME = "app.log"
 # Configuration for the RotatingFileHandler
 MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024  # 1 MB
 BACKUP_COUNT = 5  # Keep 5 old log files (e.g., app.log.1, app.log.2, ...)
+
+
+class JsonFormatter(logging.Formatter):
+    """
+    Formats log records as a single-line JSON string.
+    """
+    def format(self, record: logging.LogRecord) -> str:
+        log_object = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        if record.exc_info:
+            log_object['exception'] = "".join(
+                traceback.format_exception(*record.exc_info))
+
+        return json.dumps(log_object)
 
 
 def _get_log_level_from_env() -> int:
@@ -60,6 +83,11 @@ def get_project_or_exe_root() -> Path:
         # Running as a script
         return Path(sys.argv[0]).resolve().parent
 
+def get_dist_path() -> Path:
+    """Returns the absolute path to the 'dist' directory, relative to the
+    project root."""
+    return get_project_or_exe_root() / "dist"
+
 def setup_logging() -> Path | None:
     """
     Configures logging with a RotatingFileHandler and a console handler.
@@ -72,10 +100,17 @@ def setup_logging() -> Path | None:
         The absolute path to the log file if successful, otherwise None.
     """
     log_file_path: Path = get_log_file_path()
-    log_formatter = logging.Formatter(
-        # Standard log format with module, function, and line number for better context.
-        '%(asctime)s - %(name)s - %(levelname)-8s - [%(funcName)s:%(lineno)d] - %(message)s'
-    )
+    log_format_type = os.getenv('LOG_FORMAT', 'text').lower()
+
+    if log_format_type == 'json':
+        log_formatter = JsonFormatter()
+    else:
+        # Default human-readable text formatter
+        log_formatter = logging.Formatter(
+            # Standard log format with module, function, and line number for better context.
+            '%(asctime)s - %(name)s - %(levelname)-8s - [%(funcName)s:%(lineno)d] - %(message)s'
+        )
+
     root_logger = logging.getLogger()
     # Set level from environment variable, defaulting to INFO.
     # This allows for easy debugging without code changes.
