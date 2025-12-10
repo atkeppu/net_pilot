@@ -2,21 +2,7 @@
 
 Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää sekä jo toteutetut virstanpylväät että tulevaisuuden tavoitteet.
 
-## Toteutetut ominaisuudet
-
-✅ **Jatkuvan integraation (CI) käyttöönotto**
-*   **Tila:** Valmis.
-*   **Toteutus:** GitHub Actions -työnkulku (`.github/workflows/ci.yml`) on luotu. Se suorittaa automaattisesti `mypy`-tyyppitarkistuksen ja `pytest`-yksikkötestit jokaisen `push`- ja `pull_request`-tapahtuman yhteydessä.
-
-✅ **Asennuspaketin luominen**
-*   **Tila:** Valmis.
-*   **Toteutus:** `build.py`-skripti tukee Inno Setup -työkalua, jolla luodaan ammattimainen asennusohjelma (`.exe`). Tämä mahdollistaa pikakuvakkeiden luomisen ja sovelluksen helpon poistamisen.
-
-✅ **Resurssien hallinta**
-*   **Tila:** Valmis.
-*   **Toteutus:** `build.py` lisää tarvittavat resurssit (kuten `icon.ico`) PyInstaller-pakettiin, mikä varmistaa niiden toimivuuden jaettavassa sovelluksessa.
-
-## Tulevaisuuden kehityskohteet
+## Kehityskohteet
 
 ### 1. Testikattavuuden parantaminen
 *   **Tila:** Kesken.
@@ -51,13 +37,3 @@ Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää s
 *   **Tila:** Harkinnassa.
 *   **Tehtävä:** Tutkia ja mahdollisesti ottaa käyttöön `Trunk.io`-työkalu.
 *   **Miksi:** Yhtenäistää ja yksinkertaistaa lintereiden, formaattereiden ja muiden koodinlaadun työkalujen hallintaa. Nopeuttaa paikallista palautetta kehittäjälle (pre-commit hooks) ja parantaa CI-prosessin tehokkuutta.
-
-### 7. Käyttöliittymän tilan päivitysongelmat
-*   **Tila:** Tiedossa.
-*   **Tehtävä:** Korjata bugi, jossa verkkosovittimen tila (esim. "käytössä" / "pois käytöstä") ei päivity luotettavasti käyttöliittymässä heti toimenpiteen jälkeen.
-*   **Miksi:** Varmistaa, että käyttöliittymä näyttää aina järjestelmän todellisen tilan, mikä parantaa käyttäjäkokemusta ja luotettavuutta.
-
-### 8. Diagnostiikan älykkyyden parantaminen
-*   **Tila:** Suunnitteilla.
-*   **Tehtävä:** Estää diagnostiikkatoimintojen (kuten yhdyskäytävän ja ulkoisen kohteen ping-testit) suorittaminen, jos sovellus havaitsee, ettei yksikään verkkosovitin ole "Enabled"-tilassa tai yhteydessä verkkoon.
-*   **Miksi:** Vähentää turhia verkkokyselyitä ja virhetilanteita, kun verkkoyhteyttä ei selvästi ole saatavilla. Parantaa sovelluksen reagointikykyä ja vähentää resurssien käyttöä.
