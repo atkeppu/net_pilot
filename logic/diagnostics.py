@@ -39,8 +39,8 @@ def get_network_diagnostics(external_target: str = "8.8.8.8") -> dict:
     except NetworkManagerError as e:
         logger.warning("Could not parse ipconfig output: %s", e)
 
-    # --- Online-Only Checks ---
-    # Only perform these checks if a gateway was found, indicating a valid local network connection.
+    # --- Online-Only Checks --- # Only perform these checks if a gateway was
+    # found, indicating a valid local network connection.
     if diagnostics["Gateway"] != "N/A":
         # 1. Get Public IP using requests library
         try:

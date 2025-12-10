@@ -15,17 +15,25 @@ NetPilot noudattaa modernia työpöytäsovelluksen arkkitehtuuria, jossa on seur
 
 ## Arkkitehtuurikaavio (Mermaid)
 
-```
+```mermaid
 NetPilot/
 ├── gui/
-│   └── main_window.py      # Pääikkuna ja kaikki UI-komponentit
+│   ├── main_window.py      # Pääikkuna (tk.Tk)
+│   ├── app_context.py      # Sovelluksen keskitetty tilanhallinta
+│   ├── main_controller.py  # Käyttöliittymän valintojen ja datan hallinta
+│   ├── action_handler.py   # Käyttäjän toimintojen logiikan orkestrointi
+│   ├── queue_handler.py    # Taustasäikeiden ja UI:n välisen jonon käsittely
+│   ├── polling_manager.py  # Taustalla tapahtuva säännöllinen datan haku
+│   └── ...                 # Muut UI-komponentit ja ikkunat
 ├── logic/
-│   ├── system.py           # Järjestelmätason tarkistukset (esim. admin-oikeudet)
-│   └── ...                 # Muu sovelluslogiikka (tulevaisuudessa network_utils.py)
-├── logs/                   # (luodaan ajon aikana)
-│   └── debug.log           # Oletuslokitiedosto
+│   ├── adapters.py         # Verkkosovittimien hallintalogiikka
+│   ├── diagnostics.py      # Diagnostiikkatyökalujen logiikka
+│   ├── wifi.py             # Wi-Fi-verkkojen ja profiilien hallinta
+│   └── system.py           # Järjestelmätason toiminnot (admin, ipconfig, jne.)
+├── logs/                   # (Luodaan ajon aikana)
+│   └── app.log             # Lokitiedosto
 ├── main.py                 # Sovelluksen käynnistystiedosto (entry point)
-├── logger_setup.py         # Lokituksen alustus ja konfigurointi
+├── logger_setup.py         # Lokituksen konfigurointi
 ├── build.py                # Skripti .exe-paketin rakentamiseen
 ├── README.md               # Projektin päädokumentaatio
 └── ARCHITECTURE.md         # Tämä tiedosto
@@ -43,17 +51,23 @@ NetPilot/
     *   Käsittelee ylimmän tason poikkeukset ja kirjaa kriittiset virheet.
 
 2.  **`gui/main_window.py` (Käyttöliittymä)**
-    *   Sisältää `NetworkManagerApp`-luokan, joka periytyy `tk.Tk`:sta.
+    *   Sisältää `NetworkManagerApp`-luokan, joka periytyy `tk.Tk`:sta ja toimii sovelluksen juuri-ikkunana.
     *   Rakentaa koko graafisen käyttöliittymän: välilehdet, painikkeet, tekstikentät ja muut elementit.
-    *   Käsittelee käyttäjän syötteitä (esim. napin painallukset).
-    *   Kutsuu `logic`-kerroksen funktioita suorittamaan varsinaiset toiminnot (esim. verkkosovittimen poistaminen käytöstä).
-    *   Päivittää käyttöliittymää `logic`-kerroksesta saatujen tulosten perusteella.
+    *   Käynnistää `AppContext`-olion ja delegoi sille suurimman osan toimintalogiikasta.
+    *   Käsittelee käyttöliittymän päivitysjonoa (`_process_queue`).
 
-3.  **`logic/` (Sovelluslogiikka)**
-    *   **`system.py`**: Sisältää käyttöjärjestelmästä riippuvia apufunktioita, kuten `is_admin()`, joka tarkistaa ylläpitäjän oikeudet.
-    *   **`network_utils.py` (oletettu)**: Tänne on keskitetty kaikki verkkotoiminnot, jotka suoritetaan komentorivikomennoilla (esim. `netsh`, `ipconfig`, `wmic`). Funktiot palauttavat jäsenneltyä dataa, jonka GUI-kerros voi näyttää käyttäjälle. Tämä eriyttäminen tekee koodista testattavamman ja helpommin ylläpidettävän.
+3.  **`gui/app_context.py` ja muut hallintaluokat**
+    *   `AppContext` on sovelluksen "aivot", joka omistaa ja alustaa muut hallintakomponentit.
+    *   `MainController` hallinnoi sovelluksen dataa (esim. sovitinlista) ja käyttäjän valintoja.
+    *   `ActionHandler` ottaa vastaan käyttöliittymän tapahtumia (esim. napin painallus) ja käynnistää niihin liittyvät taustatehtävät.
+    *   `QueueHandler` käsittelee taustatehtävien tulokset ja päivittää käyttöliittymää turvallisesti.
+    *   `PollingManager` vastaa säännöllisestä datan (diagnostiikka, nopeudet) hakemisesta taustalla.
 
-4.  **`logger_setup.py` (Lokitus)**
+4.  **`logic/` (Sovelluslogiikka)**
+    *   Tämä paketti sisältää kaiken "likaisen työn". Moduulit, kuten `adapters.py`, `wifi.py` ja `diagnostics.py`, sisältävät funktioita, jotka suorittavat järjestelmäkomentoja (`netsh`, `PowerShell`, `ipconfig`) ja palauttavat jäsenneltyä dataa.
+    *   Tämä kerros ei tiedä mitään käyttöliittymästä, mikä tekee siitä uudelleenkäytettävän ja helposti testattavan.
+
+5.  **`logger_setup.py` (Lokitus)**
     *   Konfiguroi keskitetyn `logging`-moduulin, joka kirjoittaa tapahtumat sekä konsoliin että `logs/debug.log`-tiedostoon. Tämä on tärkeää vianjäljityksen kannalta.
 
 ## Toimintalogiikka (Data Flow)
@@ -61,11 +75,13 @@ NetPilot/
 1.  Käyttäjä käynnistää `main.py`:n.
 2.  Esitarkastukset suoritetaan. Virhetilanteessa näytetään `messagebox` ja sovellus suljetaan.
 3.  `NetworkManagerApp`-olio luodaan, ja se rakentaa käyttöliittymän.
-4.  Käyttäjä tekee toiminnon, esim. painaa "Disable Adapter" -nappia.
-5.  `main_window.py`:n tapahtumankäsittelijä kutsuu vastaavaa funktiota `logic/network_utils.py`:ssä.
-6.  `network_utils`-funktio suorittaa tarvittavan järjestelmäkomennon (`subprocess.run`).
-7.  Tulos (onnistuminen/virhe ja mahdollinen data) palautetaan `main_window.py`:lle.
-8.  Käyttöliittymä päivitetään näyttämään tulos (esim. tilaviesti tai päivitetty sovitinlista).
+4.  Käyttäjä tekee toiminnon, esim. painaa "Poista käytöstä" -nappia.
+5.  `AdapterDetailsFrame`:n tapahtumankäsittelijä kutsuu `ActionHandler`-luokan metodia (esim. `toggle_adapter`).
+6.  `ActionHandler` käynnistää taustasäikeen, joka kutsuu `logic`-kerroksen funktiota (esim. `set_network_adapter_status_windows`).
+7.  `logic`-funktio suorittaa järjestelmäkomennon. Tulos palautetaan taustasäikeelle.
+8.  Taustasäie laittaa tuloksen sisältävän viestin (`dict`) keskitettyyn jonoon (`task_queue`).
+9.  `main_window.py`:n `_process_queue`-metodi lukee jonon ja antaa viestin `QueueHandler`-oliolle.
+10. `QueueHandler` tulkitsee viestin ja päivittää käyttöliittymän komponentteja (esim. `adapter_list.populate(...)` tai `status_var.set(...)`).
 
 ## Arkkitehtuurikaavio (Mermaid)
 

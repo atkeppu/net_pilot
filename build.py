@@ -1,12 +1,23 @@
+"""
+Build-skripti NetPilot-sovellukselle.
+
+Tämä skripti automatisoi seuraavat vaiheet:
+1.  Siivoaa vanhat build-jäämät.
+2.  Päivittää versionumeron (valinnainen).
+3.  Generoi muutoslokin Git-historiasta.
+4.  Luo .exe-tiedoston PyInstallerilla (ja pakkaa sen UPX:llä, jos asennettu).
+5.  Luo asennusohjelman Inno Setupilla (jos asennettu).
+6.  Luo git_info.json-tiedoston paketoidun sovelluksen käyttöön.
+"""
 import subprocess
 import sys
 import os
 import argparse
-
 from pathlib import Path
 import re
 import shutil
 import json
+
 from github_integration import generate_changelog
 
 # Define app name directly in the build script to avoid import-related file locks.

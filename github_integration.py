@@ -1,13 +1,13 @@
-import os
 import re
 import sys
 from pathlib import Path
 import json
+import subprocess
 
 from exceptions import NetworkManagerError
 from logger_setup import get_project_or_exe_root
 
-def check_github_cli_auth() -> tuple[bool, str]:
+def check_github_cli_auth() -> tuple[bool, str]:  # noqa: E501
     """
     Checks if GitHub CLI is installed and the user is authenticated.
 
@@ -16,16 +16,16 @@ def check_github_cli_auth() -> tuple[bool, str]:
         is_ok is True if everything is fine, False otherwise.
         message contains the status or error.
     """
-    try:
+    try:  # noqa: E501
         # Need to import here to avoid circular dependency with logger_setup
         from logic.command_utils import run_system_command
         run_system_command(
             ["gh", "auth", "status"], "GitHub CLI authentication check failed.")
         return (True, "GitHub CLI is ready.")
     except NetworkManagerError as e:
-        # Distinguish between 'gh not found' and 'not logged in'.
+        # Distinguish between 'gh not found' and 'not logged in'.  # noqa: E501
         if "not found" in str(e):  # noqa: E501
-            return (False, "GitHub CLI ('gh') is not installed. Please install it from https://cli.github.com/")  # noqa: E501
+            return (False, "GitHub CLI ('gh') is not installed. Please install it from https://cli.github.com/")
         else:
             return (False, "You are not logged in to GitHub CLI. Please run 'gh auth login' in your terminal.")  # noqa: E501
 
@@ -159,7 +159,7 @@ def create_github_release(tag: str, title: str, notes: str,
         # The original error details from 'gh' are included.
         raise NetworkManagerError(
             f"Failed to create GitHub release for tag {tag}:\n\n{str(e)}") from e
-
+ 
 def generate_changelog(version: str):
     """
     Generates a changelog from git commits since the last tag.
@@ -169,12 +169,13 @@ def generate_changelog(version: str):
     print("-> Generoidaan muutoslokia (changelog)...")
     try:
         # Find the most recent tag. If no tags, it will error out.
-        latest_tag_result = run_system_command(
-            ["git", "describe", "--tags", "--abbrev=0"], "Could not find latest tag")
-        latest_tag = latest_tag_result.stdout.decode('utf-8').strip()
+        latest_tag_cmd = ["git", "describe", "--tags", "--abbrev=0"]
+        latest_tag = subprocess.check_output(
+            latest_tag_cmd, text=True, encoding='utf-8',
+            stderr=subprocess.PIPE).strip()
         print(f"   ...Löytyi edellinen tagi: {latest_tag}")
         commit_range = f"{latest_tag}..HEAD"
-    except NetworkManagerError:
+    except subprocess.CalledProcessError:
         # No tags found, this is likely the first release. Log all commits.
         print(
             "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
@@ -182,10 +183,11 @@ def generate_changelog(version: str):
         commit_range = "HEAD"
 
     try:
-        # Get commit subjects since the last tag in a nice bulleted list format.
-        log_result = run_system_command(
-            ["git", "log", commit_range, "--pretty=format:- %s (%h)"], "Could not generate changelog")
-        changelog_content = log_result.stdout.decode('utf-8').strip()
+        # Get commit subjects since the last tag in a nice bulleted list
+        # format.
+        log_cmd = ["git", "log", commit_range, "--pretty=format:- %s (%h)"]
+        changelog_content = subprocess.check_output(
+            log_cmd, text=True, encoding='utf-8').strip()
 
         if not changelog_content:
             changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
@@ -193,41 +195,5 @@ def generate_changelog(version: str):
         changelog_path = get_project_or_exe_root() / "CHANGELOG.md"
         changelog_path.write_text(f"# Muutokset versiossa {version}\n\n{changelog_content}\n", encoding='utf-8')
         print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
-    except NetworkManagerError as e:
-        print(f"   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa. Virhe: {e}", file=sys.stderr)
-
-def generate_changelog(version: str):
-    """
-    Generates a changelog from git commits since the last tag.
-    Saves the output to CHANGELOG.md in the project root.
-    """
-    from logic.command_utils import run_system_command
-    print("-> Generoidaan muutoslokia (changelog)...")
-    try:
-        # Find the most recent tag. If no tags, it will error out.
-        latest_tag_result = run_system_command(
-            ["git", "describe", "--tags", "--abbrev=0"], "Could not find latest tag")
-        latest_tag = latest_tag_result.stdout.decode('utf-8').strip()
-        print(f"   ...Löytyi edellinen tagi: {latest_tag}")
-        commit_range = f"{latest_tag}..HEAD"
-    except NetworkManagerError:
-        # No tags found, this is likely the first release. Log all commits.
-        print(
-            "   ...⚠️ Varoitus: Aiempia tageja ei löytynyt. Generoidaan loki "
-            "kaikista commiteista. (Tämä on normaalia ensimmäisellä julkaisulla)")
-        commit_range = "HEAD"
-
-    try:
-        # Get commit subjects since the last tag in a nice bulleted list format.
-        log_result = run_system_command(
-            ["git", "log", commit_range, "--pretty=format:- %s (%h)"], "Could not generate changelog")
-        changelog_content = log_result.stdout.decode('utf-8').strip()
-
-        if not changelog_content:
-            changelog_content = "- Ei havaittuja muutoksia edellisen version jälkeen."
-
-        changelog_path = get_project_or_exe_root() / "CHANGELOG.md"
-        changelog_path.write_text(f"# Muutokset versiossa {version}\n\n{changelog_content}\n", encoding='utf-8')
-        print(f"   ...OK: Muutosloki tallennettu tiedostoon: {changelog_path}")
-    except NetworkManagerError as e:
-        print(f"   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa. Virhe: {e}", file=sys.stderr)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("   ...ERROR: Muutoslokin generointi epäonnistui. Varmista, että olet Git-repositoriossa.", file=sys.stderr)

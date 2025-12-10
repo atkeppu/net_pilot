@@ -118,3 +118,19 @@ def is_network_available() -> bool:
     except (NetworkManagerError, FileNotFoundError):
         # If the command fails, assume no connection to be safe.
         return False
+
+def is_network_available() -> bool:
+    """
+    Checks if there is any active network connection.
+    This is a lightweight check suitable for frequent polling.
+    """
+    try:
+        # The 'netsh' command is very fast and reliable for this check.
+        result = run_system_command(
+            ["netsh", "interface", "show", "interface"], "Failed to check network availability")
+        output = result.stdout.decode('utf-8', errors='ignore')
+        # Look for any interface that is both 'Enabled' and 'Connected'.
+        return bool(re.search(r"Enabled\s+Connected", output, re.IGNORECASE))
+    except (NetworkManagerError, FileNotFoundError):
+        # If the command fails, assume no connection to be safe.
+        return False
