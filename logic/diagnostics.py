@@ -57,7 +57,8 @@ def get_network_diagnostics(external_target: str = "8.8.8.8") -> dict:
             try:
                 ping_output = run_system_command(
                     ['ping', '-n', '1', '-w', '1000', target], "Ping failed").stdout.decode('oem', errors='ignore')
-                match = re.search(r"Average = (\d+)ms", ping_output)
+                # Make regex bilingual for "Average" (EN) and "Keskimääräinen" (FI)
+                match = re.search(r"(?:Average|Keskimääräinen) = (\d+)ms", ping_output)
                 return f"{match.group(1)} ms" if match else "No Response"
             except NetworkManagerError:
                 return "No Response"

@@ -1,9 +1,10 @@
 import json
 import logging
 import time
+import re
 
 from exceptions import NetworkManagerError
-from .command_utils import run_external_ps_script, run_ps_command
+from .command_utils import run_external_ps_script, run_ps_command, run_system_command
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,8 @@ def is_network_available() -> bool:
     """
     try:
         # The 'netsh' command is very fast and reliable for this check.
-        result = run_system_command(["netsh", "interface", "show", "interface"])
+        result = run_system_command(
+            ["netsh", "interface", "show", "interface"], "Failed to check network availability")
         output = result.stdout.decode('utf-8', errors='ignore')
         # Look for any interface that is both 'Enabled' and 'Connected'.
         return bool(re.search(r"Enabled\s+Connected", output, re.IGNORECASE))
