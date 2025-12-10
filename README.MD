@@ -86,9 +86,9 @@ Tämä osio on tarkoitettu kehittäjille, jotka haluavat muokata koodia tai rake
 
 Projekti käyttää `mypy`-työkalua koodin tyyppiturvallisuuden varmistamiseksi. Voit suorittaa tarkistuksen manuaalisesti komennolla:
 
-*   **Suorita staattinen tyyppitarkistus `mypy`:llä:**
+*   **Suorita staattinen tyyppitarkistus `mypy`:llä (suositeltu tapa):**
     ```bash
-    mypy .
+    python -m mypy .
     ```
 
 ### Lokituksen formaatin vaihtaminen

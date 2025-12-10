@@ -101,6 +101,8 @@ def setup_logging() -> Path | None:
     """
     log_file_path: Path = get_log_file_path()
     log_format_type = os.getenv('LOG_FORMAT', 'text').lower()
+    # Explicitly declare the type of the formatter to satisfy mypy.
+    log_formatter: logging.Formatter
 
     if log_format_type == 'json':
         log_formatter = JsonFormatter()
