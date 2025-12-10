@@ -46,3 +46,8 @@ Tämä dokumentti kuvaa NetPilot-projektin kehityssuunnitelmaa. Se sisältää s
     *   Käyttöliittymän elementtien ja asettelun uudelleensuunnittelun käyttäjäkokemuksen parantamiseksi.
     *   Pitkällä tähtäimellä siirtymisen harkitsemista toiseen UI-kirjastoon (esim. PyQt/PySide).
 *   **Miksi:** Parantaa sovelluksen visuaalista ilmettä ja käytettävyyttä, tehden siitä miellyttävämmän ja intuitiivisemman loppukäyttäjälle.
+
+### 6. Kehittäjäkokemuksen parantaminen (Developer Experience)
+*   **Tila:** Harkinnassa.
+*   **Tehtävä:** Tutkia ja mahdollisesti ottaa käyttöön `Trunk.io`-työkalu.
+*   **Miksi:** Yhtenäistää ja yksinkertaistaa lintereiden, formaattereiden ja muiden koodinlaadun työkalujen hallintaa. Nopeuttaa paikallista palautetta kehittäjälle (pre-commit hooks) ja parantaa CI-prosessin tehokkuutta.
