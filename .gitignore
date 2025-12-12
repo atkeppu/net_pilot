@@ -76,3 +76,7 @@ Thumbs.db
 # Local configuration files
 # -------------------------------------------------------------------
 config.ini
+
+# Generated context file for AI assistants
+# -------------------------------------------------------------------
+project_context.txt
